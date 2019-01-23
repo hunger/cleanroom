@@ -4,26 +4,37 @@
 """
 
 
+from cleanroom.location import Location
 from cleanroom.generator.command import Command
 from cleanroom.generator.helper.generic.file import exists
+from cleanroom.generator.systemcontext import SystemContext
 
 import os.path
+import typing
+
+
+def _nspawnify(what: str, *systems: str) -> str:
+    clean = [s for s in systems if s]
+    if len(clean) > 0:
+        return '\n{}={}'.format(what, ' '.join(*clean))
+    return ''
 
 
 class RegisterContainerCommand(Command):
     """The register_container command."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
         super().__init__('register_container', syntax='<SYSTEM> '
                          'description=<DESC> extra_args=<ARG>(,<ARG>)* '
                          'timeout=3m after=<SYSTEM>(,<SYSTEM>)* '
                          'requires=<SYSTEM>(,<SYSTEM>)*'
                          'enable=False [machine=<directory>]',
-                         help='Register a container with a system.',
+                         help_string='Register a container with a system.',
                          file=__file__)
 
-    def validate_arguments(self, location, *args, **kwargs):
+    def validate_arguments(self, location: Location, *args: typing.Any, **kwargs: typing.Any) \
+            -> typing.Optional[str]:
         """Validate the arguments."""
         self._validate_args_exact(location, 1, '"{}" needs a system to '
                                   'install as a container.', *args)
@@ -32,13 +43,10 @@ class RegisterContainerCommand(Command):
                               **kwargs)
         self._require_kwargs(location, ('description',), **kwargs)
 
-    def _nspawnify(self, what, *systems):
-        clean = [s for s in systems if s]
-        if len(clean) > 0:
-            return '\n{}={}'.format(what, ' '.join(*clean))
-        return ''
+        return None
 
-    def __call__(self, location, system_context, *args, **kwargs):
+    def __call__(self, location: Location, system_context: SystemContext,
+                 *args: typing.Any, **kwargs: typing.Any) -> None:
         """Execute command."""
         system = args[0]
         description = kwargs.get('description', '')
@@ -69,8 +77,8 @@ class RegisterContainerCommand(Command):
         extra_args = ' \\\n    '.join(extra_args_input.split(','))
         if extra_args:
             extra_args = ' \\\n    ' + extra_args + '\n'
-        after = self._nspawnify('After', *after_input.split(','))
-        requires = self._nspawnify('Requires', *requires_input.split(','))
+        after = _nspawnify('After', *after_input.split(','))
+        requires = _nspawnify('Requires', *requires_input.split(','))
 
         system_context.execute(location.next_line(), 'create',
                                '{}/override.conf'.format(override_dir),

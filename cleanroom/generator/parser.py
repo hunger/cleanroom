@@ -5,24 +5,22 @@
 """
 
 
-from .command import Command
-from .commandmanager import CommandManager
-from .context import Context
-from .execobject import ExecObject
-
 from ..exceptions import ParseError
 from ..location import Location
-from ..printer import debug, h2
+from ..printer import debug
+from .commandmanager import CommandManager
+from .execobject import ExecObject
 
-import importlib.util
-import inspect
-import os
 import re
 import pyparsing as pp
 import typing
 
 
-def _generate_grammar(*, debug: bool=False):
+_octal_pattern = re.compile('^0o?([0-7]+)$')
+_hex_pattern = re.compile('^0x([0-9a-fA-F]+)$')
+
+
+def _generate_grammar(*, debug_parser: bool = False):
     pp.ParserElement.setDefaultWhitespaceChars(' \t')
 
     EOL = pp.Optional(pp.pythonStyleComment()) + pp.LineEnd()
@@ -45,8 +43,11 @@ def _generate_grammar(*, debug: bool=False):
 
     Grammar = pp.ZeroOrMore(pp.Group(pp.Optional(Command) + pp.Suppress(EOL)))
 
-    if debug:
-        for ename in "Grammar Command ArgumentList KwArgument Argument SimpleArgument QuotedArgument DoubleQuotedArgument SingleQuotedArgument MultilineArgument Identifier LC EOL".split():
+    if debug_parser:
+        for ename in 'Grammar Command ArgumentList KwArgument Argument ' \
+                     'SimpleArgument QuotedArgument DoubleQuotedArgument ' \
+                     'SingleQuotedArgument MultilineArgument ' \
+                     'Identifier LC EOL'.split():
             expr = locals()[ename]
             expr.setName(ename)
             expr.setDebug()
@@ -57,10 +58,10 @@ def _generate_grammar(*, debug: bool=False):
 
 class Parser:
     """Parse a system definition file."""
-    def __init__(self, command_manager: CommandManager, *, debug: bool=False) -> None:
+    def __init__(self, command_manager: CommandManager, *, debug_parser: bool = False) -> None:
         """Constructor."""
         self._command_manager = command_manager
-        self._grammar = _generate_grammar(debug=debug)
+        self._grammar = _generate_grammar(debug_parser=debug_parser)
 
     def parse(self, input_file: str) -> typing.List[ExecObject]:
         """Parse a file."""
@@ -86,13 +87,13 @@ class Parser:
                     
                 arguments = child_dict.get('args', [])
                 if isinstance(arguments, dict):
-                    arguments = [arguments,]
+                    arguments = [arguments]
                 assert isinstance(arguments, list)
 
                 command = child_dict.get('command', {})
                 assert len(command) == 3
 
-                command_pos = command.get('locn_start', -1)
+                command_pos = command.get('loc_start', -1)
                 command_name = command.get('value', '')
 
                 current_location = Location(file_name=input_file,
@@ -105,7 +106,7 @@ class Parser:
                                      location=current_location)
 
                 (args, kwargs) = _process_arguments(arguments)
-                result.append(cmd.exec_object(current_location, *args, **kwargs));
+                result.append(cmd.exec_object(current_location, *args, **kwargs))
         except pp.ParseException as pe:
             raise ParseError(str(pe), location=current_location)
         except ParseError as pe:
@@ -130,7 +131,8 @@ def _process_arguments(arguments: typing.List[typing.Dict[str, str]]) \
         else:
             args.append(_map_value(value))
         
-    return (args, kwargs)
+    return args, kwargs
+
 
 def _map_value(value: typing.Dict[str, str]) -> typing.Any:
     if 'simple' in value:
@@ -143,18 +145,14 @@ def _map_value(value: typing.Dict[str, str]) -> typing.Any:
             return True
         if v == 'False':
             return False
-        octal_match = _map_value._octal_pattern.match(v) 
+        octal_match = _octal_pattern.match(v)
         if octal_match:
             return int(octal_match.group(1), 8)
-        hex_match = _map_value._hex_pattern.match(v)
+        hex_match = _hex_pattern.match(v)
         if hex_match:
             return int(hex_match.group(1), 16)
         if v.isdigit():
             return int(v)
         return v
     else:
-        return value['quoted']    
-
-_map_value._octal_pattern = re.compile('^0o?([0-7]+)$')
-_map_value._hex_pattern = re.compile('^0x([0-9a-fA-F]+)$')
-
+        return value['quoted']

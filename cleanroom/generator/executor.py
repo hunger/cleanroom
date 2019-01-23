@@ -5,12 +5,11 @@
 """
 
 
+from ..location import Location
+from ..printer import h2, trace, success
+from ..exceptions import GenerateError
 from .execobject import ExecObject
 from .systemcontext import SystemContext
-
-from ..location import Location
-from ..printer import fail, h2, trace, success
-from ..exceptions import GenerateError
 
 import os
 import os.path
@@ -42,11 +41,13 @@ class Executor:
 
         return True
 
-    def _system_already_built(self, system_context: SystemContext) -> bool:
+    @staticmethod
+    def _system_already_built(system_context: SystemContext) -> bool:
         """Check whether system has been built already."""
         return os.path.isdir(system_context.storage_directory())
 
-    def _execute(self, location: Location, system_context: SystemContext,
+    @staticmethod
+    def _execute(location: Location, system_context: SystemContext,
                  exec_object: ExecObject) -> None:
         """Execute the command."""
         trace('Executing "{}".'.format(exec_object))
@@ -69,4 +70,4 @@ class Executor:
         """Run commands."""
         for eo in exec_obj_list:
             os.chdir(system_context.systems_directory())
-            self._execute(eo._location, system_context, eo)
+            self._execute(eo.location(), system_context, eo)

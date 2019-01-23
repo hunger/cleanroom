@@ -13,8 +13,8 @@ import typing
 class CleanRoomError(Exception):
     """Base class for all cleanroom Exceptions."""
 
-    def __init__(self, *args: typing.Any, location: Location=None,
-                 original_exception: typing.Optional[Exception]=None) -> None:
+    def __init__(self, *args: typing.Any, location: Location = None,
+                 original_exception: typing.Optional[Exception] = None) -> None:
         """Constructor."""
         super().__init__(*args)
         self.location = location

@@ -5,24 +5,24 @@
 """
 
 
+# Needed so that type SystemContext is found
 from __future__ import annotations
 
+from ..exceptions import GenerateError
+from ..helper.run import run
+from ..location import Location
+from ..printer import (debug, h3, info, success, trace,)
 from .command import Command
 from .commandmanager import CommandManager
 from .context import Binaries, Context
 from .execobject import ExecObject
 from .helper.generic.file import (expand_files, file_name)
 
-from ..exceptions import GenerateError
-from ..location import Location
-from ..printer import (debug, h3, info, success, trace,)
-
-from ..helper.run import run
-
 import os
 import os.path
 import pickle
 import string
+import subprocess
 import typing
 
 
@@ -32,7 +32,7 @@ class _SystemContextPickler(pickle.Pickler):
     def persistent_id(self, obj: typing.Any) -> typing.Optional[typing.Tuple[str, str]]:
         """Treat commands special when pickling."""
         if isinstance(obj, Command):
-            return ('Command', obj.name())
+            return 'Command', obj.name()
         return None
 
 
@@ -57,7 +57,7 @@ class SystemContext:
     """Context data for the execution os commands."""
 
     def __init__(self, ctx: Context, command_manager: CommandManager, *,
-                 system: str, timestamp: typing.Optional[str]=None) -> None:
+                 system: str, timestamp: typing.Optional[str] = None) -> None:
         """Constructor."""
         self.ctx: typing.Optional[Context] = ctx
         self._command_manager = command_manager
@@ -80,7 +80,7 @@ class SystemContext:
                              timestamp=self.timestamp)
 
     def _setup_core_substitutions(self) -> None:
-        """Core substitutions that may not get overriden by base system."""
+        """Core substitutions that may not get overridden by base system."""
         if self.base_context:
             self.set_substitution('BASE_SYSTEM', self.base_context.system)
         else:
@@ -149,9 +149,9 @@ class SystemContext:
         return os.path.join(self.current_system_directory(), 'cache')
 
     # Work with system files:
-    def expand_files(self, *files: str) -> typing.List[str] :
+    def expand_files(self, *files: str) -> typing.Sequence[str]:
         """Map and expand files from inside to outside paths."""
-        return expand_files(self, *files)
+        return tuple(expand_files(self, *files))
 
     def file_name(self, path: str) -> str:
         """Map a file from inside to outside path."""
@@ -203,12 +203,13 @@ class SystemContext:
         self.hooks_that_already_ran.append(hook)
 
     # Handle substitutions:
-    def set_substitution(self, key: str, value: str):
+    def set_substitution(self, key: str, value: str) -> None:
         """Add a substitution to the substitution table."""
         self.substitutions[key] = value
         trace('Added substitution: "{}"="{}".'.format(key, value))
 
-    def substitution(self, key: str, default_value: typing.Optional[str]=None):
+    def substitution(self, key: str,
+                     default_value: typing.Optional[str] = None) -> typing.Any:
         """Get substitution value."""
         return self.substitutions.get(key, default_value)
 
@@ -221,7 +222,8 @@ class SystemContext:
         return string.Template(text).substitute(**self.substitutions)
 
     # Run shell commands:
-    def run(self, *args: typing.Any, outside: bool=False, **kwargs: typing.Any):
+    def run(self, *args: typing.Any, outside: bool = False,
+            **kwargs: typing.Any) -> subprocess.CompletedProcess:
         """Run a command in this system_context."""
         assert 'chroot' not in kwargs
 
@@ -246,7 +248,8 @@ class SystemContext:
 
     # execute cleanroom commands:
     def execute(self, location: Location, command: str, *args: typing.Any,
-                expected_dependency: typing.Optional[str]=None, **kwargs: typing.Any) -> None:
+                expected_dependency: typing.Optional[str] = None,
+                **kwargs: typing.Any) -> None:
         """Execute a command."""
         assert location is not None
         assert location.is_valid()
@@ -309,12 +312,12 @@ class SystemContext:
         self.ctx = ctx
         self.hooks_that_already_ran = hooks_that_ran
 
-    def unpickle(self) -> None:
+    def unpickle(self) -> SystemContext:
         """Create a new system_context by unpickling a file."""
         pickle_jar = self._pickle_jar()
 
         debug('Unpickling system_context from {}.'.format(pickle_jar))
         with open(pickle_jar, 'rb') as jar:
             base_context = _SystemContextUnpickler(jar, self._command_manager).load()
-        debug('Unpickled base context.')
+        debug('Base context was unpickled.')
         return base_context

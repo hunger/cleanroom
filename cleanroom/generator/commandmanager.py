@@ -5,11 +5,8 @@
 """
 
 
+from ..printer import debug, h2
 from .command import Command
-from .execobject import ExecObject
-
-from ..location import Location
-from ..printer import debug, h2, verbose
 
 import importlib.util
 import inspect
@@ -20,7 +17,7 @@ import typing
 class CommandManager:
     """Manage the list of available commands."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._commands: typing.Dict[str, typing.Tuple[Command, str]] = {}
 
     def _add_command(self, name: str, command: Command, file_name: str) -> None:
@@ -83,4 +80,3 @@ class CommandManager:
     def command_file(self, name: str) -> typing.Optional[str]:
         """Retrieve the file containing a command."""
         return self._commands.get(name, (None, None))[1]
-

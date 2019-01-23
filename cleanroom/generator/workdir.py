@@ -5,37 +5,41 @@
 """
 
 
-from .context import Binaries, Context
-
 from ..exceptions import GenerateError, PrepareError
 from ..helper.btrfs import create_snapshot, create_subvolume, \
     delete_subvolume_recursive, has_subvolume
 from ..helper.mount import umount_all
 from ..printer import trace
+from .context import Binaries, Context
 
 import os
 import os.path
 import tempfile
+import typing
 
 
 class WorkDir:
     """Parse a container.conf file."""
 
-    def __init__(self, ctx, *, work_directory=None,
-                 clear_work_directory=False,
-                 clear_storage=False):
+    def __init__(self, ctx: Context, *, work_directory: str = None,
+                 clear_work_directory: bool = False,
+                 clear_storage: bool = False) -> None:
         """Constructor."""
         self._path = work_directory
-        self._temp_directory = None
+        self._temp_directory: typing.Optional[tempfile.TemporaryDirectory] \
+            = None
 
         if work_directory:
             if not os.path.exists(work_directory):
-                trace('Creating permanent work directory in "{}".'.format(work_directory))
+                trace('Creating permanent work directory in "{}".'
+                      .format(work_directory))
                 os.makedirs(work_directory, 0o700)
             else:
-                trace('Using existing work directory in "{}".'.format(work_directory))
+                trace('Using existing work directory in "{}".'
+                      .format(work_directory))
                 if not umount_all(work_directory):
-                    raise PrepareError('Failed to unmount mount in work directory "{}".'
+                    raise PrepareError('Failed to unmount mount in work '
+                                       'directory "{}".'
                                        .format(work_directory))
                 if clear_work_directory:
                     delete_current_system_directory(ctx, work_directory=work_directory)
@@ -47,44 +51,43 @@ class WorkDir:
                                                                dir='/var/tmp')
             self._path = self._temp_directory.name
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Destructor."""
         self.cleanup()
 
-    def __enter__(self):
+    def __enter__(self) -> typing.Any:
         """Enter a Context."""
         if self._temp_directory:
             return self._temp_directory.__enter__()
         else:
             return self._path
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
         """Exit a context."""
-        if (self._temp_directory):
-            tmpDir = self._temp_directory
+        if self._temp_directory:
+            tmp_directory = self._temp_directory
             self._temp_directory = None
-            return tmpDir.__exit__(exc_type, exc_val, exc_tb)
+            return tmp_directory.__exit__(exc_type, exc_val, exc_tb)
         return False
 
-    def path(self):
+    def path(self) -> typing.Optional[str]:
         """Name of the work directory."""
         return self._path
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up the work directory (if necessary)."""
-        if not self._temp_directory:
-            return
-
-        self._temp_directory.cleanup()
-        self._temp_directory = None
+        if self._temp_directory:
+            self._temp_directory.cleanup()
+            self._temp_directory = None
 
 
-def _subdirectories(dir):
-    return [os.path.join(dir, name) for name in os.listdir(dir)
-            if os.path.isdir(os.path.join(dir, name))]
+def _subdirectories(directory: str) -> typing.List[str]:
+    return [os.path.join(directory, name) for name in os.listdir(directory)
+            if os.path.isdir(os.path.join(directory, name))]
 
 
-def _create_subvolume(ctx, directory, exists_ok=False):
+def _create_subvolume(ctx: Context, directory: str,
+                      exists_ok: bool = False) -> None:
     if has_subvolume(directory, command=ctx.binary(Binaries.BTRFS)):
         if exists_ok:
             trace('Subvolume {} already exists, continuing.'.format(directory))
@@ -97,14 +100,20 @@ def _create_subvolume(ctx, directory, exists_ok=False):
     create_subvolume(directory, command=ctx.binary(Binaries.BTRFS))
 
 
-def delete_work_directory(ctx, *, work_directory=None):
-    wd = work_directory if work_directory else ctx.work_directory()
+def delete_work_directory(ctx: Context, *,
+                          work_directory: typing.Optional[str] = None) \
+        -> None:
+    wd = work_directory or ctx.work_directory()
+    assert wd
     trace('Deleting work directory {}.'.format(wd))
     delete_subvolume_recursive(wd, command=ctx.binary(Binaries.BTRFS))
 
 
-def delete_current_system_directory(ctx, *, work_directory=None):
-    wd = work_directory if work_directory else ctx.work_directory()
+def delete_current_system_directory(ctx: Context, *,
+                                    work_directory: typing.Optional[str] = None) \
+        -> None:
+    wd = work_directory or ctx.work_directory()
+    assert wd
     sd = Context.current_system_directory_from_work_directory(wd)
 
     trace('Deleting current system directory {}.'.format(wd))
@@ -112,8 +121,9 @@ def delete_current_system_directory(ctx, *, work_directory=None):
         delete_subvolume_recursive(sd, command=ctx.binary(Binaries.BTRFS))
 
 
-def create_work_directory(ctx):
+def create_work_directory(ctx: Context) -> None:
     wd = ctx.work_directory()
+    assert wd
     sd = Context.current_system_directory_from_work_directory(wd)
 
     trace('Create work directory {}.'.format(wd))
@@ -126,7 +136,9 @@ def create_work_directory(ctx):
     _create_subvolume(ctx, os.path.join(sd, 'meta'))
 
 
-def store_work_directory(ctx, system_directory, storage_directory):
+def store_work_directory(ctx: Context,
+                         system_directory: str,
+                         storage_directory: str) -> None:
     trace('Store work directory {} in {}.'
           .format(system_directory, storage_directory))
 
@@ -142,7 +154,9 @@ def store_work_directory(ctx, system_directory, storage_directory):
                     command=ctx.binary(Binaries.BTRFS), read_only=True)
 
 
-def restore_work_directory(ctx, storage_directory, system_directory):
+def restore_work_directory(ctx: Context,
+                           storage_directory: str,
+                           system_directory: str) -> None:
     trace('Restore storage directory {} to {}.'
           .format(storage_directory, system_directory))
 
@@ -159,8 +173,9 @@ def restore_work_directory(ctx, storage_directory, system_directory):
                     command=ctx.binary(Binaries.BTRFS))
 
 
-def _clear_storage(ctx, work_directory):
+def _clear_storage(ctx: Context, work_directory: str) -> None:
     storage_directory = Context.storage_directory_from_work_directory(work_directory)
+    assert storage_directory
     if os.path.isdir(storage_directory):
         delete_subvolume_recursive(storage_directory, command=ctx.binary(Binaries.BTRFS))
         os.rmdir(storage_directory)

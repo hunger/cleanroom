@@ -23,7 +23,7 @@ class DummyCommand(Command):
 
     def __init__(self, name):
         """Constructor."""
-        super().__init__(name, help='test', file=__file__)
+        super().__init__(name, help_string='test', file=__file__)
 
     def validate_arguments(self, location, *args, **kwargs):
         """Accept all arguments."""

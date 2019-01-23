@@ -4,25 +4,30 @@
 @author: Tobias Hunger <tobias.hunger@gmail.com>
 """
 
+
+from cleanroom.location import Location
 from cleanroom.generator.command import Command
+from cleanroom.generator.systemcontext import SystemContext
 
-from cleanroom.printer import debug
-
-import os.path
+import typing
 
 
 class StripDocumentationCommand(Command):
     """The strip_documentation Command."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
         super().__init__('strip_documentation',
-                         help='Strip away documentation files.', file=__file__)
+                         help_string='Strip away documentation files.', file=__file__)
 
-    def validate_arguments(self, location, *args, **kwargs):
+    def validate_arguments(self, location: Location, *args: typing.Any, **kwargs: typing.Any) \
+            -> typing.Optional[str]:
         """Validate arguments."""
         self._validate_no_arguments(location, *args, **kwargs)
 
-    def __call__(self, location, system_context, *args, **kwargs):
+        return None
+
+    def __call__(self, location: Location, system_context: SystemContext,
+                 *args: typing.Any, **kwargs: typing.Any) -> None:
         """Execute command."""
         system_context.add_hook(location, 'export', '_strip_documentation_hook')

@@ -7,15 +7,14 @@
 
 from __future__ import annotations
 
+from ..exceptions import CleanRoomError, GenerateError, SystemNotFoundError
+from ..printer import debug, fail, h1, h2, success, trace, verbose, Printer
 from .commandmanager import CommandManager
 from .context import Binaries, Context
 from .execobject import ExecObject
 from .executor import Executor
 from .parser import Parser
 from .systemcontext import SystemContext
-
-from ..exceptions import CleanRoomError, GenerateError, SystemNotFoundError
-from ..printer import (debug, fail, h1, h2, success, trace, verbose, Printer,)
 
 import datetime
 import os
@@ -118,7 +117,7 @@ class Generator:
             -> typing.Tuple[typing.Optional[str], typing.List[ExecObject]]:
         trace('Parsing "{}".'.format(system_file))
         system_parser = Parser(self._command_manager)
-        exec_obj_list: typing.List[ExecObject] = []
+        exec_obj_list = []  # type: typing.List[ExecObject]
         for exec_obj in system_parser.parse(system_file):
             exec_obj_list.append(exec_obj)
 
@@ -128,7 +127,7 @@ class Generator:
                 base_system = exec_object.dependency()
                 break
 
-        return (base_system, exec_obj_list)
+        return base_system, exec_obj_list
 
     def _find_system_definition_file(self, system: str) -> str:
         """Make sure a system definition file can be found."""
@@ -172,7 +171,7 @@ class Generator:
             os.makedirs(storage_dir)
 
     def _report_error(self, system: str, exception: Exception,
-                      ignore_errors: bool=False) -> None:
+                      ignore_errors: bool = False) -> None:
         if isinstance(exception, AssertionError):
             fail('Generation of "{}" asserted.'.format(system), force_exit=False)
         else:
@@ -182,20 +181,20 @@ class Generator:
         self._report_error_details(system, exception, ignore_errors=ignore_errors)
 
     def _report_error_details(self, system: str, exception: Exception,
-                              ignore_errors: bool=False) -> None:
+                              ignore_errors: bool = False) -> None:
         if isinstance(exception, CleanRoomError) and exception.original_exception is not None:
             self._report_error_details(system, exception.original_exception, ignore_errors=ignore_errors)
             return
 
         print('\nError report:')
-        Printer.Instance().flush()
+        Printer.instance().flush()
         print('\n\nTraceback Information:')
         traceback.print_tb(exception.__traceback__)
         print('\n\n>>>>>> END OF ERROR REPORT <<<<<<')
         if not ignore_errors:
             raise GenerateError('Generation failed.', original_exception=exception)
 
-    def generate(self, ignore_errors: bool=False) -> None:
+    def generate(self, ignore_errors: bool = False) -> None:
         """Generate all systems in the dependency tree."""
         self._print_systems_forest()
         timestamp = datetime.datetime.now().strftime('%Y%m%d.%H%M')

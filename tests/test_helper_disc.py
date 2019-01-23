@@ -75,7 +75,7 @@ def test_partitioner(tmpdir):
     if os.geteuid() != 0:
         pytest.skip('This test needs root to run.')
 
-    with disc.NbdDevice.NewImageFile(os.path.join(tmpdir, 'testdisk'), '512m') as device:
+    with disc.NbdDevice.new_image_file(os.path.join(tmpdir, 'testdisk'), '512m') as device:
         partitioner = disc.Partitioner(device)
         assert not partitioner.is_partitioned()
         assert partitioner.label() is None

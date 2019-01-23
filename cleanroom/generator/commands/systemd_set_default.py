@@ -5,28 +5,35 @@
 """
 
 
+from cleanroom.exceptions import GenerateError
+from cleanroom.location import Location
 from cleanroom.generator.command import Command
 from cleanroom.generator.helper.generic.file import isfile
+from cleanroom.generator.systemcontext import SystemContext
 
-from cleanroom.exceptions import GenerateError
+import typing
 
 
 class SystemdSetDefaultCommand(Command):
     """The systemd_set_default command."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
         super().__init__('systemd_set_default', syntax='<TARGET>',
-                         help='Set the systemd target to boot into.',
+                         help_string='Set the systemd target to boot into.',
                          file=__file__)
 
-    def validate_arguments(self, location, *args, **kwargs):
+    def validate_arguments(self, location: Location, *args: typing.Any, **kwargs: typing.Any) \
+            -> typing.Optional[str]:
         """Validate the arguments."""
         self._validate_arguments_exact(location, 1,
                                        '"{}" needs a target name.',
                                        *args, **kwargs)
 
-    def __call__(self, location, system_context, *args, **kwargs):
+        return None
+
+    def __call__(self, location: Location, system_context: SystemContext,
+                 *args: typing.Any, **kwargs: typing.Any) -> None:
         """Execute command."""
         target = args[0]
         systemd_directory = '/usr/lib/systemd/system/'

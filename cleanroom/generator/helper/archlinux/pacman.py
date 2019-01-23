@@ -7,7 +7,6 @@
 
 from ...context import Binaries
 from ...systemcontext import SystemContext
-from ....exceptions import GenerateError
 from ....printer import debug, info, verbose
 
 import os
@@ -225,11 +224,11 @@ def pacman(system_context: SystemContext, *packages: str,
 
     if (_pacman_state(system_context) == 'False'
             and os.path.isfile(system_context.file_name('/usr/bin/pacman'))):
-        _set_pacman_state(system_context, 'True')
+        _set_pacman_state(system_context, True)
         _move_pacman_data(system_context, not remove)
 
 
-def pacman_report(system_context: SystemContext, directory: str):
+def pacman_report(system_context: SystemContext, directory: str) -> None:
     """Print pacman information into FS."""
     if _pacman_state(system_context) == 'True':
         return

@@ -5,23 +5,28 @@
 """
 
 
-from cleanroom.generator.command import Command
 from cleanroom.exceptions import ParseError
+from cleanroom.location import Location
+from cleanroom.generator.command import Command
 from cleanroom.generator.helper.generic.file import move
+from cleanroom.generator.systemcontext import SystemContext
+
+import typing
 
 
 class MoveCommand(Command):
     """The move command."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
         super().__init__('move', syntax='<SOURCE> [<SOURCE>] <DEST> '
                          ' [ignore_missing_sources=False]'
                          ' [from_outside=False] [to_outside=False] '
                          '[force=False]',
-                         help='Move file or directory.', file=__file__)
+                         help_string='Move file or directory.', file=__file__)
 
-    def validate_arguments(self, location, *args, **kwargs):
+    def validate_arguments(self, location: Location, *args: typing.Any, **kwargs: typing.Any) \
+            -> typing.Optional[str]:
         """Validate the arguments."""
         self._validate_args_at_least(location, 2,
                                      '"{}" needs at least one '
@@ -34,6 +39,9 @@ class MoveCommand(Command):
             raise ParseError('You can not move a file from_outside to_outside.',
                              location=location)
 
-    def __call__(self, location, system_context, *args, **kwargs):
+        return None
+
+    def __call__(self, location: Location, system_context: SystemContext,
+                 *args: typing.Any, **kwargs: typing.Any) -> None:
         """Execute command."""
         move(system_context, *args, **kwargs)

@@ -5,28 +5,39 @@
 """
 
 
+from cleanroom.location import Location
 from cleanroom.generator.command import Command
 from cleanroom.generator.context import Binaries
+from cleanroom.generator.systemcontext import SystemContext
+
+import typing
 
 
 class ExportDirectoryCommand(Command):
     """The _export_directory command."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
         super().__init__('_export_directory', syntax='<DIRECTORY> compression_level=<X>',
-                         help='Export a directory from cleanroom.',
+                         help_string='Export a directory from cleanroom.',
                          file=__file__)
 
-    def validate_arguments(self, location, *args, **kwargs):
+    def validate_arguments(self, location: Location, *args: typing.Any, **kwargs: typing.Any) \
+            -> typing.Optional[str]:
         """Validate the arguments."""
         self._validate_args_exact(location, 1, '"{}" needs a directory '
                                   'to export.', *args)
         self._validate_kwargs(location, ('compression_level',), **kwargs)
 
-    def __call__(self, location, system_context, *args, **kwargs):
+        return None
+
+    def __call__(self, location: Location, system_context: SystemContext,
+                 *args: typing.Any, **kwargs: typing.Any) -> None:
         """Execute command."""
         export_directory = args[0]
+        assert system_context.ctx
+        assert system_context.timestamp
+
         repository = system_context.ctx.repository()
         if repository == '':
             return

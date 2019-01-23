@@ -5,10 +5,10 @@
 """
 
 
+from cleanroom.location import Location
 from cleanroom.generator.command import Command
 from cleanroom.generator.helper.archlinux.pacman import pacstrap
 from cleanroom.generator.systemcontext import SystemContext
-from cleanroom.location import Location
 
 import os.path
 import typing
@@ -20,7 +20,7 @@ class PacstrapCommand(Command):
     def __init__(self) -> None:
         """Constructor."""
         super().__init__('pacstrap', syntax='<PACKAGES> config=<config>',
-                         help='Run pacstrap to install <PACKAGES>.\n'
+                         help_string='Run pacstrap to install <PACKAGES>.\n'
                          'Hooks: Will runs _setup hooks after pacstrapping.',
                          file=__file__)
 
@@ -36,7 +36,7 @@ class PacstrapCommand(Command):
         return None
 
     def __call__(self, location: Location, system_context: SystemContext,
-                 *args: str, **kwargs: typing.Any) -> bool:
+                 *args: str, **kwargs: typing.Any) -> None:
         """Execute command."""
         pacstrap(system_context, *args, **kwargs)
 
@@ -45,8 +45,6 @@ class PacstrapCommand(Command):
         system_context.execute(location.next_line(), 'create_os_release')
 
         self._setup_hooks(location, system_context)
-
-        return True
 
     def _setup_hooks(self, location: Location, system_context: SystemContext) -> None:
         igpgdir = '/usr/lib/pacman/gpg'

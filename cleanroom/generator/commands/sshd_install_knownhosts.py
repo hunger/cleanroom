@@ -5,33 +5,36 @@
 """
 
 
+from cleanroom.exceptions import GenerateError
+from cleanroom.location import Location
 from cleanroom.generator.command import Command
-from cleanroom.generator.helper.generic.file import (chmod, chown, isdir,)
+from cleanroom.generator.helper.generic.file import isdir
+from cleanroom.generator.systemcontext import SystemContext
 
-from cleanroom.exceptions import (GenerateError, ParseError,)
-
-import os.path
-import glob
+import typing
 
 
 class SshdInstallKnownhostsCommand(Command):
     """The sshd_install_knownhosts command."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
         super().__init__('sshd_install_knownhosts',
-                         help='Install system wide knownhosts file.',
+                         help_string='Install system wide knownhosts file.',
                          file=__file__)
 
-    def validate_arguments(self, location, *args, **kwargs):
+    def validate_arguments(self, location: Location, *args: typing.Any, **kwargs: typing.Any) \
+            -> typing.Optional[str]:
         """Validate the arguments."""
         self._validate_no_arguments(location, *args, **kwargs)
 
-    def __call__(self, location, system_context, *args, **kwargs):
+        return None
+
+    def __call__(self, location: Location, system_context: SystemContext,
+                 *args: typing.Any, **kwargs: typing.Any) -> None:
         """Execute command."""
-        key_directory = args[0]
-        self._validate_key_directory(location, key_directory)
+        # FIXME: Implement this!
+        # self._validate_key_directory(location, key_directory)
         if not isdir(system_context, '/etc/ssh'):
             raise GenerateError('"{}": No /etc/ssh directory found in system.'
                                 .format(self.name()), location=location)
-

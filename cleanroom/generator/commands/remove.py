@@ -12,6 +12,7 @@ from cleanroom.generator.systemcontext import SystemContext
 
 import typing
 
+
 class RemoveCommand(Command):
     """The copy command."""
 
@@ -19,7 +20,7 @@ class RemoveCommand(Command):
         """Constructor."""
         super().__init__('remove',
                          syntax='<FILE_LIST> [force=True] [recursive=True] [outside=False]',
-                         help='remove files within the system.', file=__file__)
+                         help_string='remove files within the system.', file=__file__)
 
     def validate_arguments(self, location: Location,
                            *args: str, **kwargs: typing.Any) -> typing.Optional[str]:
@@ -31,8 +32,6 @@ class RemoveCommand(Command):
         return None
 
     def __call__(self, location: Location, system_context: SystemContext,
-                 *args: str, **kwargs: typing.Any) -> bool:
+                 *args: str, **kwargs: typing.Any) -> None:
         """Execute command."""
         remove(system_context, *args, **kwargs)
-
-        return True

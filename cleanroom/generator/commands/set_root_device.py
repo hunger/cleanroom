@@ -5,23 +5,26 @@
 """
 
 
+from cleanroom.exceptions import GenerateError, ParseError
+from cleanroom.location import Location
 from cleanroom.generator.command import Command
-
-from cleanroom.exceptions import (GenerateError, ParseError)
+from cleanroom.generator.systemcontext import SystemContext
 
 import os.path
+import typing
 
 
 class SetRootDeviceCommand(Command):
     """The set_root_device command."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
         super().__init__('set_root_device', syntax='<DEVICE>',
-                         help='Set the device of the root partition.',
+                         help_string='Set the device of the root partition.',
                          file=__file__)
 
-    def validate_arguments(self, location, *args, **kwargs):
+    def validate_arguments(self, location: Location, *args: typing.Any, **kwargs: typing.Any) \
+            -> typing.Optional[str]:
         """Validate the arguments."""
         self._validate_arguments_exact(location, 1, '"{}" needs a device.',
                                        *args, **kwargs)
@@ -29,15 +32,18 @@ class SetRootDeviceCommand(Command):
         device = args[0]
         if not device.startswith('/dev/') and not device.startswith('/sys/'):
             raise ParseError('"{}": Root device "{}" does not start with /dev/ or /sys/.'
-                             .format(self.nam(), device),
+                             .format(self.name(), device),
                              location=location)
 
-    def _write_file(self, system_context, file_name, contents):
+        return None
+
+    def _write_file(self, system_context: SystemContext, file_name: str, contents: str) -> None:
         with open(os.path.join(system_context.boot_data_directory(),
                                file_name), 'wb') as f:
             f.write(contents.encode('utf-8'))
 
-    def __call__(self, location, system_context, *args, **kwargs):
+    def __call__(self, location: Location, system_context: SystemContext,
+                 *args: typing.Any, **kwargs: typing.Any) -> None:
         """Execute command."""
         device = args[0]
 

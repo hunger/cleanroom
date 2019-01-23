@@ -5,7 +5,11 @@
 """
 
 
+from cleanroom.location import Location
 from cleanroom.generator.command import Command
+from cleanroom.generator.systemcontext import SystemContext
+
+import typing
 
 
 class PkgNginxCommand(Command):
@@ -14,16 +18,20 @@ class PkgNginxCommand(Command):
     def __init__(self):
         """Constructor."""
         super().__init__('pkg_nginx', syntax='http=False https=True',
-                         help='Setup nginx web server.',
+                         help_string='Setup nginx web server.',
                          file=__file__)
 
-    def validate_arguments(self, location, *args, **kwargs):
+    def validate_arguments(self, location: Location, *args: typing.Any, **kwargs: typing.Any) \
+            -> typing.Optional[str]:
         """Validate the arguments."""
         self._validate_no_args(location, *args)
         self._validate_kwargs(location, ('http', 'https',), **kwargs)
         self._require_kwargs(location, ('http', 'https',), **kwargs)
 
-    def __call__(self, location, system_context, *args, **kwargs):
+        return None
+
+    def __call__(self, location: Location, system_context: SystemContext,
+                 *args: typing.Any, **kwargs: typing.Any) -> None:
         """Execute command."""
         system_context.execute(location.next_line(),
                                'pacman', 'nginx')

@@ -5,28 +5,28 @@
 """
 
 
-from cleanroom.exceptions import GenerateError
-from cleanroom.printer import debug, info, trace, verbose
-
+from ....exceptions import GenerateError
+from ....printer import debug, info, trace, verbose
+from ...systemcontext import SystemContext
 from .group import group_data
 from .user import user_data
 
-import distutils.dir_util
+from distutils.dir_util import copy_tree
+
 import glob
 import os
 import os.path
 import shutil
+import typing
 
 
-def file_name(system_context, f):
+def file_name(system_context: typing.Optional[SystemContext], f: str) -> str:
     """Return the full (outside) file path to a absolute (inside) file."""
     if not os.path.isabs(f):
         raise GenerateError('File path "{}" is not absolute.'.format(f))
 
     full_path = os.path.normpath(f)
-    if system_context is not None:
-        root_path = '/'
-
+    if system_context:
         root_path = os.path.realpath(system_context.fs_directory())
         full_path = os.path.normpath(os.path.join(root_path, f[1:]))
 
@@ -39,16 +39,21 @@ def file_name(system_context, f):
     return full_path
 
 
-def expand_files(system_context, *files, recursive=False):
+def expand_files(system_context: typing.Optional[SystemContext],
+                 *files: str, recursive: bool = False) \
+        -> typing.Generator[str, None, None]:
     """Prepend the system directory and expand glob patterns.
 
     Prepend system directory to files iff the system_context is given.
     Expand glob patterns.
     """
-    if system_context:
-        to_iterate = map(lambda f: file_name(system_context, f), files)
-    else:
-        to_iterate = map(lambda f: os.path.join(os.getcwd(), f), files)
+    def func(f: str):
+        if system_context:
+            file_name(system_context, f)
+        else:
+            os.path.join(os.getcwd(), f)
+
+    to_iterate = map(func, files)
 
     for pattern in to_iterate:
         debug('expand_files: Matching pattern: {}.'.format(pattern))
@@ -57,7 +62,8 @@ def expand_files(system_context, *files, recursive=False):
             yield match
 
 
-def _check_file(system_context, f, op, description, work_directory=None):
+def _check_file(system_context: SystemContext, f: str, op: typing.Callable,
+                description: str, work_directory: typing.Optional[str] = None) -> bool:
     """Run op on a file f."""
     old_work_directory = os.getcwd()
     if work_directory is not None:
@@ -81,25 +87,29 @@ def _check_file(system_context, f, op, description, work_directory=None):
     return result
 
 
-def exists(system_context, f, work_directory=None):
+def exists(system_context: SystemContext, f: str, work_directory: typing.Optional[str] = None) \
+        -> bool:
     """Check whether a file exists."""
     return _check_file(system_context, f, os.path.exists, 'file exists:',
                        work_directory=work_directory)
 
 
-def isfile(system_context, f, work_directory=None):
+def isfile(system_context: SystemContext, f: str, work_directory: typing.Optional[str] = None) \
+        -> bool:
     """Check whether a file exists and is a file."""
     return _check_file(system_context, f, os.path.isfile, 'isfile:',
                        work_directory=work_directory)
 
 
-def isdir(system_context, f, work_directory=None):
+def isdir(system_context: SystemContext, f: str, work_directory: typing.Optional[str] = None) \
+        -> bool:
     """Check whether a file exists and is a directory."""
     return _check_file(system_context, f, os.path.isdir, 'isdir:',
                        work_directory=work_directory)
 
 
-def symlink(system_context, source, destination, work_directory=None):
+def symlink(system_context: SystemContext, source: str, destination: str,
+            work_directory: typing.Optional[str] = None) -> None:
     """Create a symbolic link."""
     if work_directory is not None:
         os.chdir(file_name(system_context, work_directory))
@@ -114,20 +124,21 @@ def symlink(system_context, source, destination, work_directory=None):
     os.symlink(source, destination)
 
 
-def makedirs(system_context, *dirs, user=0, group=0, mode=None, force=False):
+def makedirs(system_context: SystemContext, *dirs: str, user: int = 0, group: int = 0,
+             mode: typing.Optional[int] = None, force: bool = False) -> None:
     """Make directories in the system filesystem."""
     for d in dirs:
         info('Creating "{}" with mode={}, uid={}, gid={} ({}).'
              .format(d, mode, user, group, force))
         full_path = file_name(system_context, d)
         os.makedirs(full_path, exist_ok=force)
-        _chmod(system_context, mode, full_path)
-        _chown(system_context,
-               _get_uid(system_context, user),
+        if mode:
+            _chmod(mode, full_path)
+        _chown(_get_uid(system_context, user),
                _get_gid(system_context, group), full_path)
 
 
-def _chmod(system_context, mode, *files):
+def _chmod(mode: int, *files: str) -> None:
     """For internal use only."""
     if mode is None:
         return
@@ -139,13 +150,13 @@ def _chmod(system_context, mode, *files):
         os.chmod(f, mode)
 
 
-def chmod(system_context, mode, *files, recursive=False):
+def chmod(system_context: SystemContext, mode: int, *files: str,
+          recursive: bool = False) -> None:
     """Chmod in the system filesystem."""
-    return _chmod(system_context, mode,
-                  *expand_files(system_context, *files, recursive=recursive))
+    _chmod(mode, *expand_files(system_context, *files, recursive=recursive))
 
 
-def _chown(system_context, uid, gid, *files):
+def _chown(uid: int, gid: int, *files: str) -> None:
     """Change owner of files."""
     assert uid is not str
     assert gid is not str
@@ -155,7 +166,7 @@ def _chown(system_context, uid, gid, *files):
         os.chown(f, uid, gid, follow_symlinks=False)
 
 
-def _get_uid(system_context, user):
+def _get_uid(system_context: SystemContext, user: typing.Any) -> int:
     trace('Getting UID of {} ({}).'.format(user, type(user)))
     if user is None:
         info('UID: Mapped None to 0.')
@@ -175,7 +186,7 @@ def _get_uid(system_context, user):
     return data.uid
 
 
-def _get_gid(system_context, group):
+def _get_gid(system_context: SystemContext, group: typing.Any) -> int:
     trace('Getting GID of {} ({}).'.format(group, type(group)))
     if group is None:
         info('GID: Mapped None to 0.')
@@ -195,15 +206,17 @@ def _get_gid(system_context, group):
     return data.gid
 
 
-def chown(system_context, user, group, *files, recursive=False):
+def chown(system_context: SystemContext,
+          user: typing.Any, group: typing.Any,
+          *files: str, recursive: bool = False) -> None:
     """Change ownership of a file in the system filesystem."""
-    return _chown(system_context,
-                  _get_uid(system_context, user),
-                  _get_gid(system_context, group),
-                  *expand_files(system_context, *files, recursive=recursive))
+    _chown(_get_uid(system_context, user),
+           _get_gid(system_context, group),
+           *expand_files(system_context, *files, recursive=recursive))
 
 
-def read_file(system_context, file, outside=False):
+def read_file(system_context: SystemContext, file: str,
+              outside: bool = False) -> bytes:
     """Read the contents of a file."""
     if not outside:
         file = system_context.file_name(file)
@@ -211,8 +224,9 @@ def read_file(system_context, file, outside=False):
         return f.read()
 
 
-def create_file(system_context, file, contents, force=False, mode=0o644,
-                user=0, group=0):
+def create_file(system_context: SystemContext, file: str, contents: bytes,
+                force: bool = False, mode: int = 0o644,
+                user: typing.Any = 0, group: typing.Any = 0) -> None:
     """Create a new file with the given contents."""
     full_path = file_name(system_context, file)
 
@@ -228,10 +242,11 @@ def create_file(system_context, file, contents, force=False, mode=0o644,
     uid = _get_uid(system_context, user)
     gid = _get_gid(system_context, group)
     trace('Changing ownership of {} to {}:{}.'.format(full_path, uid, gid))
-    _chown(system_context, uid, gid, full_path)
+    _chown(uid, gid, full_path)
 
 
-def append_file(system_context, file, contents, *, force=False):
+def append_file(system_context: SystemContext, file: str, contents: bytes, *,
+                force: bool = False) -> None:
     """Append contents to an existing file."""
     full_path = file_name(system_context, file)
 
@@ -243,11 +258,12 @@ def append_file(system_context, file, contents, *, force=False):
         f.write(contents)
 
 
-def prepend_file(system_context, file, contents):
+def prepend_file(system_context: SystemContext, file: str, contents: bytes, *,
+                 force: bool = False) -> None:
     """Prepend contents to an existing file."""
     full_path = file_name(system_context, file)
 
-    if not os.path.exists(full_path):
+    if not os.path.exists(full_path) and not force:
         raise GenerateError('"{}" does not exist when trying to append to it.'
                             .format(full_path))
 
@@ -257,9 +273,11 @@ def prepend_file(system_context, file, contents):
         f.write(contents + existing_contents)
 
 
-def _file_op(system_context, op, description, *args,
-             to_outside=False, from_outside=False, ignore_missing_sources=True,
-             recursive=False, force=False, **kwargs):
+def _file_op(system_context: typing.Optional[SystemContext],
+             op: typing.Callable, description: str, *args: str,
+             to_outside: bool = False, from_outside: bool = False,
+             ignore_missing_sources: bool = True, force: bool = False,
+             **kwargs: typing.Any) -> None:
     assert(not to_outside or not from_outside)
     sources = args[:-1]
     destination = args[-1]
@@ -304,21 +322,23 @@ def _file_op(system_context, op, description, *args,
         op(s, d, **kwargs)
 
 
-def _copy_op(source, destination, **kwargs):
+def _copy_op(source: str, destination: str, **kwargs: typing.Any) -> None:
     shutil.copyfile(source, destination, **kwargs)
 
 
-def _recursive_copy_op(source, destination, **kwargs):
+def _recursive_copy_op(source: str, destination: str, **kwargs: typing.Any) \
+        -> None:
     if os.path.isdir(source):
         assert os.path.isdir(destination) or not os.path.exists(destination)
-        distutils.dir_util.copy_tree(source, destination)
+        copy_tree(source, destination)
     else:
         assert not os.path.isdir(destination)
         assert not os.path.exists(destination)
         shutil.copyfile(source, destination, **kwargs)
 
 
-def copy(system_context, *args, recursive=False, **kwargs):
+def copy(system_context: typing.Optional[SystemContext],
+         *args: str, recursive: bool = False, **kwargs: typing.Any) -> None:
     """Copy files."""
     if recursive:
         return _file_op(system_context, _recursive_copy_op,
@@ -327,16 +347,19 @@ def copy(system_context, *args, recursive=False, **kwargs):
                     'Copying "{}" to "{}".', *args, **kwargs)
 
 
-def move(system_context, *args, **kwargs):
+def move(system_context: typing.Optional[SystemContext],
+         *args: str, **kwargs: typing.Any) -> None:
     """Move files."""
     return _file_op(system_context, shutil.move, 'Moving "{}" to "{}".',
                     *args, **kwargs)
 
 
-def remove(system_context, *files, recursive=False, force=False, outside=False):
+def remove(system_context: typing.Optional[SystemContext],
+           *files: str, recursive: bool = False, force: bool = False,
+           outside: bool = False) -> None:
     """Delete a file inside of a system."""
     sc = None if outside else system_context
-    for file in expand_files(sc, *files, recursive=True):
+    for file in expand_files(sc, *files, recursive=recursive):
         trace('Removing "{}".'.format(file))
 
         if not os.path.exists(file):
@@ -352,7 +375,7 @@ def remove(system_context, *files, recursive=False, force=False, outside=False):
         else:
             try:
                 os.unlink(file)
-            except Exception as e:
+            except Exception:
                 if not force:
                     raise
                 else:

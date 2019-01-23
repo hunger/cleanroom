@@ -99,7 +99,7 @@ def _parse_and_verify_lines(parser, data, expected):
 
 def _create_and_setup_parser(global_ctx):
     """Set up method."""
-    cleanroom.printer.Printer.Instance()
+    cleanroom.printer.Printer.instance()
     command_manager = CommandManager()
     command_manager.find_commands(global_ctx.commands_directory())
     command_manager._add_command('_setup', DummyCommand('_setup', help='placeholder', file=__file__), '<placeholder>')

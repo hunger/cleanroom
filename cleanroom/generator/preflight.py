@@ -5,11 +5,12 @@
 """
 
 
-from .context import Binaries, Context
 from ..exceptions import PreflightError
-from ..printer import (debug, error, info, h2, warn,)
+from ..printer import debug, error, info, h2, warn
+from .context import Binaries, Context
 
 import os
+import typing
 
 
 def _check_for_binary(binary: str) -> str:
@@ -18,8 +19,8 @@ def _check_for_binary(binary: str) -> str:
 
 
 def _get_distribution():
-    with open("/usr/lib/os-release") as os:
-        for line in os.readlines():
+    with open("/usr/lib/os-release") as os_release:
+        for line in os_release.readlines():
             line = line.strip()
             if line.startswith('ID_LIKE='):
                 return line[8:].strip('"')
@@ -41,16 +42,16 @@ def _find_binaries(ctx: Context) -> None:
         # in arch-install-scripts in ubuntu:-)
         Binaries.CHROOT_HELPER: _check_for_binary('/usr/bin/arch-chroot'),
     }
-    os_binaries = {}
+    os_binaries: typing.Dict[Binaries, str] = {}
     distribution = _get_distribution()
-    if (distribution == "debian"):
+    if distribution == "debian":
         os_binaries = {
             Binaries.APT_GET: _check_for_binary('/usr/bin/apt-get'),
             Binaries.DPKG: _check_for_binary('/usr/bin/dpkg'),
             Binaries.DEBOOTSTRAP: _check_for_binary('/usr/sbin/debootstrap'),
             Binaries.VERITYSETUP: _check_for_binary('/usr/sbin/veritysetup'),
         }
-    elif (distribution == "archlinux"):
+    elif distribution == "archlinux":
         os_binaries = {
             Binaries.PACMAN: _check_for_binary('/usr/bin/pacman'),
             Binaries.PACMAN_KEY: _check_for_binary('/usr/bin/pacman-key'),
@@ -70,7 +71,7 @@ def preflight_check(ctx: Context) -> None:
     _find_binaries(ctx)
 
     binaries = _preflight_binaries_check(ctx)
-    users = _preflight_users_check(ctx)
+    users = _preflight_users_check()
 
     if not binaries or not users:
         raise PreflightError('Preflight Check failed.')
@@ -79,7 +80,7 @@ def preflight_check(ctx: Context) -> None:
 def _preflight_binaries_check(ctx: Context) -> bool:
     """Check executables."""
     passed = True
-    for b in ctx._binaries.items():
+    for b in ctx.binaries().items():
         if b[1]:
             info('{} found: {}...'.format(b[0], b[1]))
         else:
@@ -88,7 +89,7 @@ def _preflight_binaries_check(ctx: Context) -> bool:
     return passed
 
 
-def _preflight_users_check(ctx: Context) -> bool:
+def _preflight_users_check() -> bool:
     """Check tha the script is running as root."""
     if os.geteuid() == 0:
         debug('Running as root.')

@@ -5,6 +5,12 @@
 """
 
 
+from ....location import Location
+from ...systemcontext import SystemContext
+
+import typing
+
+
 _TCP_MAGIC = '#### Allowed TCP ports:'
 _UDP_MAGIC = '#### Allowed UDP ports:'
 
@@ -12,7 +18,7 @@ _IPv4_RULES = '/etc/iptables/iptables.rules'
 _IPv6_RULES = '/etc/iptables/ip6tables.rules'
 
 
-def install_rules(location, system_context):
+def install_rules(location: Location, system_context: SystemContext) -> None:
     """Install basic firewall rules."""
     assert firewall_type(system_context) is None
     set_firewall_type(system_context)
@@ -21,7 +27,7 @@ def install_rules(location, system_context):
     _install_v6_rules(location, system_context, _IPv6_RULES)
 
 
-def enable_firewall(location, system_context):
+def enable_firewall(location: Location, system_context: SystemContext) -> None:
     """Enable the firewall."""
     # FIXME: Fix systemd install section to run iptables services earlier!
     assert firewall_type(system_context) == 'iptables'
@@ -30,22 +36,24 @@ def enable_firewall(location, system_context):
                            'iptables.service', 'ip6tables.service')
 
 
-def firewall_type(system_context):
+def firewall_type(system_context: SystemContext) -> typing.Optional[str]:
     """Get type of firewall or None if none is active."""
     return system_context.substitution('CLRM_FIREWALL', None)
 
 
-def set_firewall_type(system_context):
+def set_firewall_type(system_context: SystemContext) -> None:
     """Set the type of firewall."""
     system_context.set_substitution('CLRM_FIREWALL', 'iptables')
 
 
-def open_port(location, system_context, port, protocol='tcp', comment=None):
+def open_port(location: Location, system_context: SystemContext,
+              port: int, protocol: str = 'tcp',
+              comment: typing.Optional[str]=None) -> None:
     """Open a port in the firewall."""
     magic = _TCP_MAGIC if protocol == 'tcp' else _UDP_MAGIC
     output = ''
     output += '-A {0} -p {1} -m {1} --dport {2} -j ACCEPT' \
-             .format(protocol.upper(), protocol, port)
+              .format(protocol.upper(), protocol, port)
 
     pattern = '/{}/ a{}'.format(magic, output)
     location.set_description('Open IPv4 port')
@@ -54,7 +62,8 @@ def open_port(location, system_context, port, protocol='tcp', comment=None):
     system_context.execute(location, 'sed', pattern, _IPv6_RULES)
 
 
-def _install_v4_rules(location, system_context, rule_file):
+def _install_v4_rules(location: Location, system_context: SystemContext,
+                      rule_file: str) -> None:
     location.set_description('Install IPv4 rules')
     system_context.execute(location, 'create', rule_file, """
 # iptables rules:
@@ -97,7 +106,7 @@ COMMIT
 """.format(_TCP_MAGIC, _UDP_MAGIC), force=True, mode=0o644)
 
 
-def _install_v6_rules(location, system_context, rule_file):
+def _install_v6_rules(location: Location, system_context: SystemContext, rule_file: str) -> None:
     location.set_description('Install IPv6 rules')
     system_context.execute(location, 'create', rule_file, """
 # ip6tables rules:

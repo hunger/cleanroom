@@ -41,9 +41,9 @@ class Context:
     """The context the generation will run in."""
 
     def __init__(self, *,
-                 repository: typing.Optional[str]=None,
-                 ignore_errors: bool=False,
-                 keep_temporary_data: bool=False) -> None:
+                 repository: typing.Optional[str] = None,
+                 ignore_errors: bool = False,
+                 keep_temporary_data: bool = False) -> None:
         """Constructor."""
         self.ignore_errors = ignore_errors
         self.keep_temporary_data = keep_temporary_data
@@ -67,6 +67,9 @@ class Context:
         binary = self._binaries[selector]
         trace('Getting binary for {}: {}.'.format(selector, binary))
         return binary
+
+    def binaries(self):
+        return self._binaries
 
     def set_directories(self, system_directory: str, work_directory: str) -> None:
         """Set system- and work directory and set them up."""
@@ -137,7 +140,8 @@ class Context:
         assert self._repository
         return self._repository
 
-    def _directory_check(self, directory: typing.Optional[str]) -> str:
+    @staticmethod
+    def _directory_check(directory: typing.Optional[str]) -> str:
         """Raise a ContextError if a directory is not yet set up."""
         if directory is None:
             raise ContextError('Directories not set up yet.')

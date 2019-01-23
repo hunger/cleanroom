@@ -5,54 +5,56 @@
 """
 
 
+from cleanroom.exceptions import GenerateError
+from cleanroom.location import Location
 from cleanroom.generator.command import Command
-from cleanroom.generator.helper.generic.file import (chmod, chown, exists, isdir, makedirs,)
+from cleanroom.generator.systemcontext import SystemContext
+from cleanroom.generator.helper.generic.file import chmod, chown, exists, isdir, makedirs
 from cleanroom.generator.helper.generic.user import user_data
-
-import cleanroom.exceptions as ex
-from cleanroom.printer import (debug, trace,)
+from cleanroom.printer import debug, trace
 
 import os.path
+import typing
 
 
 class SshInstallPrivateKeyCommand(Command):
     """The ssh_install_private_key command."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
         super().__init__('ssh_install_private_key', syntax='<USER> <KEYFILE>',
-                         help='Install <KEYFILE> as private key for <USER>.',
+                         help_string='Install <KEYFILE> as private key for <USER>.',
                          file=__file__)
 
-    def validate_arguments(self, location, *args, **kwargs):
+    def validate_arguments(self, location: Location, *args: typing.Any, **kwargs: typing.Any) \
+            -> typing.Optional[str]:
         """Validate the arguments."""
         self._validate_arguments_exact(location, 2,
                                        '"{}" needs a user and a keyfile.',
                                        *args, **kwargs)
 
-    def _check_or_create_directory(self, location, system_context, dir,
-                                   **kwargs):
-        if not exists(system_context, dir):
-            makedirs(system_context, dir, **kwargs)
-            return
-        if not isdir(system_context, dir):
-            raise ex.GenerateError('"{}" needs directory "{}", but '
-                                   'that exists and is not a directory.'
-                                   .format(self.name(), dir),
-                                   location=location)
+        return None
 
-    def __call__(self, location, system_context, *args, **kwargs):
+    def _check_or_create_directory(self, location: Location, system_context: SystemContext,
+                                   directory: str, **kwargs: typing.Any) -> None:
+        if not exists(system_context, directory):
+            makedirs(system_context, directory, **kwargs)
+            return
+        if not isdir(system_context, directory):
+            raise GenerateError('"{}" needs directory "{}", but that exists and is not a directory.'
+                                .format(self.name(), directory),
+                                location=location)
+
+    def __call__(self, location: Location, system_context: SystemContext,
+                 *args: typing.Any, **kwargs: typing.Any) -> None:
         """Execute command."""
         user_name = args[0]
         key_file = args[1]
 
-        location
-
         user = user_data(system_context, user_name)
         if user is None:
-            raise ex.GenerateError('"{}" could not find user "{}".'
-                                   .format(self.name(), user_name),
-                                   location=location)
+            raise GenerateError('"{}" could not find user "{}".'.format(self.name(), user_name),
+                                location=location)
 
         debug('Installing "{}" to user "{}" ({}).'.format(key_file, user_name, user.home))
 

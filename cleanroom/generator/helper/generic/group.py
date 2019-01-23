@@ -6,15 +6,18 @@
 
 
 from cleanroom.generator.context import Binaries
+from cleanroom.generator.systemcontext import SystemContext
 
 import collections
 import os.path
+import typing
 
 
 Group = collections.namedtuple('Group', ['name', 'password', 'gid', 'members'])
 
 
-def groupadd(system_context, group_name, *, gid=-1, force=False, system=False):
+def groupadd(system_context: SystemContext, group_name: str, *,
+             gid: int = -1, force: bool = False, system: bool = False) -> bool:
     """Execute command."""
     command = [system_context.binary(Binaries.GROUPADD),
                group_name]
@@ -28,10 +31,10 @@ def groupadd(system_context, group_name, *, gid=-1, force=False, system=False):
     if system:
         command += ['--system']
 
-    system_context.run(*command)
+    return system_context.run(*command).returncode == 0
 
 
-def _group_data(group_file, name):
+def _group_data(group_file: str, name: str) -> typing.Optional[Group]:
     if not os.path.exists(group_file):
         return None
 
@@ -39,7 +42,7 @@ def _group_data(group_file, name):
         for line in group:
             if line.endswith('\n'):
                 line = line[:-1]
-            current_group = line.split(':')
+            current_group = line.split(':')  # type: typing.Any
             if current_group[0] == name:
                 current_group[2] = int(current_group[2])
                 if current_group[3] == '':
@@ -50,12 +53,14 @@ def _group_data(group_file, name):
     return Group('nobody', 'x', 65534, [])
 
 
-def group_data(system_context, name):
+def group_data(system_context: SystemContext, name: str) -> typing.Optional[Group]:
     """Get user data from passwd file."""
     return _group_data(system_context.file_name('/etc/group'), name)
 
-def groupmod(system_context, group_name, *, gid=-1,
-             password='', rename='', root_directory=''):
+
+def groupmod(system_context: SystemContext, group_name: str, *, gid: int = -1,
+             password: str = '', rename: str = '', root_directory: str = '') \
+        -> bool:
     """Modify an existing user."""
     command = [system_context.binary(Binaries.GROUPMOD),
                group_name]
@@ -72,5 +77,4 @@ def groupmod(system_context, group_name, *, gid=-1,
     if root_directory:
         command += ['--root', root_directory]
 
-    system_context.run(*command)
-
+    return system_context.run(*command).returncode == 0

@@ -36,7 +36,7 @@ import cleanroom.generator.commands.systemd_cleanup as systemd_cleanup
 ])
 def test_map_base(test_input, expected):
     """Test map_base."""
-    cmd = systemd_cleanup.SystemdCleanupCommand()
+    cmd = systemd_cleanup
     result = cmd._map_base(*test_input)
     assert result == expected
 
@@ -81,7 +81,7 @@ def test_map_base(test_input, expected):
 ])
 def test_map_target_link(test_input, expected):
     """Test map_target_link."""
-    cmd = systemd_cleanup.SystemdCleanupCommand()
+    cmd = systemd_cleanup
     result = cmd._map_target_link(*test_input)
     assert result == expected
 
@@ -107,7 +107,7 @@ def test_map_target_link(test_input, expected):
 ])
 def test_map_target_link_errors(test_input):
     """Test map_target_link with errors."""
-    cmd = systemd_cleanup.SystemdCleanupCommand()
+    cmd = systemd_cleanup
     with pytest.raises(AssertionError):
         cmd._map_target_link(*test_input)
 
@@ -159,7 +159,7 @@ def test_map_target_link_errors(test_input):
 ])
 def test_map_host_link(test_input, expected):
     """Test map_host_link."""
-    cmd = systemd_cleanup.SystemdCleanupCommand()
+    cmd = systemd_cleanup
     result = cmd._map_host_link(*test_input)
     assert result == expected
 
@@ -184,6 +184,6 @@ def test_map_host_link(test_input, expected):
 ])
 def test_map_host_link_errors(test_input):
     """Test map_host_link errors."""
-    cmd = systemd_cleanup.SystemdCleanupCommand()
+    cmd = systemd_cleanup
     with pytest.raises(AssertionError):
         cmd._map_host_link(*test_input)

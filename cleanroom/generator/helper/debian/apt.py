@@ -7,8 +7,6 @@
 
 from ...context import Binaries
 from ...systemcontext import SystemContext
-from ....exceptions import GenerateError
-from ....printer import debug, info, verbose
 
 import os
 import os.path
@@ -29,7 +27,7 @@ def _apt_state(system_context: SystemContext) -> bool:
     return system_context.substitution('APT_INSTALL_STATE', str(False))
 
 
-def _set_apt_state(system_context: SystemContext, internal: bool=False) -> None:
+def _set_apt_state(system_context: SystemContext, internal: bool = False) -> None:
     system_context.set_substitution('APT_INSTALL_STATE', str(internal))
 
 
@@ -37,28 +35,31 @@ def _fs_directory(system_context: SystemContext) -> str:
     return system_context.fs_directory()
 
 
-
-def _dpkg_state_directory(system_context: SystemContext, internal: bool=False) -> str:
+def _dpkg_state_directory(system_context: SystemContext, internal: bool = False) -> str:
     if internal:
         return system_context.file_name('/var/lib/dpkg')
     return os.path.join(system_context.meta_directory(), 'dpkg/state')
 
-def _dpkg_config_directory(system_context: SystemContext, internal: bool=False) -> str:
+
+def _dpkg_config_directory(system_context: SystemContext, internal: bool = False) -> str:
     if internal:
         return system_context.file_name('/etc/dpkg')
     return os.path.join(system_context.meta_directory(), 'dpkg/config')
 
-def _apt_state_directory(system_context: SystemContext, internal: bool=False) -> str:
+
+def _apt_state_directory(system_context: SystemContext, internal: bool = False) -> str:
     if internal:
         return system_context.file_name('/var/lib/apt')
     return os.path.join(system_context.meta_directory(), 'apt/state')
 
-def _apt_cache_directory(system_context: SystemContext, internal: bool=False) -> str:
+
+def _apt_cache_directory(system_context: SystemContext, internal: bool = False) -> str:
     if internal:
         return system_context.file_name('/var/cache/apt')
     return os.path.join(system_context.cache_directory(), 'apt')
 
-def _apt_config_directory(system_context: SystemContext, internal: bool=False) -> str:
+
+def _apt_config_directory(system_context: SystemContext, internal: bool = False) -> str:
     if internal:
         return system_context.file_name('/etc/apt')
     return os.path.join(system_context.meta_directory(), 'apt/config')
@@ -72,9 +73,9 @@ def _sanity_check(system_context: SystemContext) -> None:
     assert stat.S_ISCHR(mode)
 
 
-def debootstrap(system_context: SystemContext, *, suite: str, variant: str='',
-                target: str, mirror: str,
-                include: str=None, exclude: str=None) -> None:
+def debootstrap(system_context: SystemContext, *, suite: str, variant: str = '',
+                target: str, mirror: str, include: str = None,
+                exclude: str = None) -> None:
     """Run debootstrap on host."""
     assert not _package_type(system_context)
     _sanity_check(system_context)
@@ -82,16 +83,16 @@ def debootstrap(system_context: SystemContext, *, suite: str, variant: str='',
     assert suite
     assert target
 
-    args = []
+    args = []  # type: typing.List[str]
     if variant:
-        args += ['--variant={}'.format(variant),]
+        args.append('--variant={}'.format(variant))
     if include:
-        args += ['--include={}'.format(include),]
+        args.append('--include={}'.format(include))
     if exclude:
-        args += ['--exclude={}'.format(exclude),]
-    args += [suite, target,]
+        args.append('--exclude={}'.format(exclude))
+    args += [suite, target]
     if mirror:
-        args += [mirror,]
+        args.append(mirror)
 
     # Debootstrap:
     system_context.run(system_context.binary(Binaries.DEBOOTSTRAP),
@@ -127,23 +128,23 @@ def debootstrap(system_context: SystemContext, *, suite: str, variant: str='',
 
     # Create apt configuration override:
     with open(os.path.join(system_context.meta_directory(),
-                           "apt/config/override.conf"), 'w') as apt:
-        apt.write('Dir::Etc "{}";\n'.format(apt_config))
-        apt.write('DPkg::options {{"--admindir={}"; "--instdir={}";}};\n'
-                                  .format(dpkg_state, root));
-        apt.write('Dir::State "{}";\n'.format(apt_state))
-        apt.write('Dir::Cache "{}";\n'.format(apt_cache))
-        apt.write('Dir::Log "{}";\n'.format(os.path.join(apt_cache, 'log')))
-        apt.write('Dir::State::status "{}";\n'
-                  .format(os.path.join(dpkg_state, 'status')))
+                           "apt/config/override.conf"), 'w') as apt_override:
+        apt_override.write('Dir::Etc "{}";\n'.format(apt_config))
+        apt_override.write('DPkg::options {{"--admindir={}"; "--instdir={}";}};\n'
+                           .format(dpkg_state, root))
+        apt_override.write('Dir::State "{}";\n'.format(apt_state))
+        apt_override.write('Dir::Cache "{}";\n'.format(apt_cache))
+        apt_override.write('Dir::Log "{}";\n'.format(os.path.join(apt_cache, 'log')))
+        apt_override.write('Dir::State::status "{}";\n'
+                           .format(os.path.join(dpkg_state, 'status')))
 
 
-def apt(system_context: SystemContext, *packages: str,
-        remove: bool=False, assume_installed: str='', overwrite: str='') -> None:
+def apt(system_context: SystemContext, *packages: str, remove: bool = False,
+        assume_installed: str = '', overwrite: str = '') -> None:
     """Use apt to install packages."""
     assert _package_type(system_context) == 'deb'
 
-    ## FIXME: Implement this!
+    # FIXME: Implement this!
 
 
 def apt_report(system_context: SystemContext, directory: str):
@@ -153,5 +154,4 @@ def apt_report(system_context: SystemContext, directory: str):
 
     os.makedirs(directory)
 
-    ## FIXME: Implement this!
-
+    # FIXME: Implement this!

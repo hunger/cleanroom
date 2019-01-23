@@ -4,26 +4,32 @@
 """
 
 
+from cleanroom.location import Location
 from cleanroom.generator.command import Command
-from cleanroom.generator.helper.generic.file import exists
+from cleanroom.generator.systemcontext import SystemContext
 
 import os.path
+import typing
 
 
 class PkgAmdCpuCommand(Command):
     """The pkg_amd_cpu command."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
         super().__init__('pkg_amd_cpu',
-                         help='Install everything for amd CPU.',
+                         help_string='Install everything for amd CPU.',
                          file=__file__)
 
-    def validate_arguments(self, location, *args, **kwargs):
+    def validate_arguments(self, location: Location, *args: typing.Any, **kwargs: typing.Any) \
+            -> typing.Optional[str]:
         """Validate the arguments."""
         self._validate_no_arguments(location, *args, **kwargs)
 
-    def __call__(self, location, system_context, *args, **kwargs):
+        return None
+
+    def __call__(self, location: Location, system_context: SystemContext,
+                 *args: typing.Any, **kwargs: typing.Any) -> None:
         """Execute command."""
 
         # Nested virtualization:
@@ -41,4 +47,3 @@ class PkgAmdCpuCommand(Command):
         system_context.execute(location, 'move', '/boot/amd-ucode.img',
                                os.path.join(initrd_parts, '00-amd-ucode'),
                                to_outside=True)
-

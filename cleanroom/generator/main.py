@@ -5,13 +5,12 @@
 @author: Tobias Hunger <tobias.hunger@gmail.com>
 """
 
+from ..printer import fail, Printer, success
+from ..exceptions import GenerateError, PreflightError, PrepareError
 from .context import Context
 from .generator import Generator
 from .preflight import preflight_check
 from .workdir import WorkDir
-
-from ..printer import (fail, Printer, success)
-from ..exceptions import (GenerateError, PreflightError, PrepareError,)
 
 from argparse import ArgumentParser
 import os
@@ -19,7 +18,7 @@ import sys
 import typing
 
 
-def _parse_commandline(*arguments: str):
+def _parse_commandline(*arguments: str) -> typing.Any:
     """Parse the command line options."""
     parser = ArgumentParser(description='Cleanroom OS image script generator',
                             prog=arguments[0])
@@ -82,7 +81,7 @@ def main(*args: str) -> None:
         sys.exit(2)
 
     # Set up printing:
-    pr = Printer.Instance()
+    pr = Printer.instance()
     pr.set_verbosity(args.verbose)
 
     pr.show_verbosity_level()
@@ -122,7 +121,6 @@ def _preflight_check(ctx: Context) -> None:
 
 def _generate(ctx: Context, systems: typing.List[str]):
     generator = Generator(ctx)
-    failed_to_generate: typing.List[str] = []
 
     try:
         generator.prepare()
@@ -139,7 +137,7 @@ def _generate(ctx: Context, systems: typing.List[str]):
 
     try:
         generator.generate(ctx.ignore_errors)
-    except GenerateError as e:
+    except GenerateError:
         fail('Generation failed.', verbosity=2)
     else:
         success('Generation phase.', verbosity=2)

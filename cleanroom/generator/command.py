@@ -10,10 +10,11 @@ from.
 
 from __future__ import annotations
 
-from .execobject import ExecObject
 from ..exceptions import ParseError
 from ..location import Location
-from ..printer import trace
+from ..printer import trace, fail
+from .execobject import ExecObject
+from .systemcontext import SystemContext
 
 import os
 import os.path
@@ -23,12 +24,13 @@ import typing
 class Command:
     """A command that can be used in to set up machines."""
 
-    def __init__(self, name: str, *, syntax: str='', help: str, file: str) -> None:
+    def __init__(self, name: str, *, syntax: str = '', help_string: str, file: str) \
+            -> None:
         """Constructor."""
         assert name
         self._name = name
         self._syntax_string = syntax
-        self._help_string = help
+        self._help_string = help_string
         self._base_directory = os.path.dirname(os.path.realpath(file))
 
     def name(self) -> str:
@@ -49,9 +51,8 @@ class Command:
         Validate all arguments and optionally return a dependency for
         the system.
         """
-        print('Command "{}"" called validate_arguments illegally!'
-              .format(self.name()))
-        assert False
+        fail('Command "{}"" called validate_arguments illegally!'
+             .format(self.name()))
         return None
 
     def _validate_no_arguments(self, location: Location,
@@ -97,7 +98,9 @@ class Command:
 
     def _validate_kwargs(self, location: Location, known_kwargs: typing.Tuple[str, ...],
                          **kwargs: typing.Any) -> None:
-        trace('Validating keyword arguments: "{}"'.format('", "'.join([ '{}={}'.format(k, str(kwargs[k])) for k in kwargs.keys()])))
+        trace('Validating keyword arguments: "{}"'
+              .format('", "'.join(['{}={}'.format(k, str(kwargs[k]))
+                                   for k in kwargs.keys()])))
         if not known_kwargs:
             if kwargs:
                 raise ParseError('"{}" does not accept keyword arguments.'
@@ -106,7 +109,7 @@ class Command:
             for key, value in kwargs.items():
                 if key not in known_kwargs:
                     raise ParseError('"{}" does not accept the keyword '
-                                        'arguments "{}".'
+                                     'arguments "{}".'
                                      .format(self.name(), key),
                                      location=location)
 
@@ -115,18 +118,18 @@ class Command:
         for key in required_kwargs:
             if key not in kwargs:
                 raise ParseError('"{}" requires the keyword '
-                                    'arguments "{}" to be passed.'
+                                 'arguments "{}" to be passed.'
                                  .format(self.name(), key),
                                  location=location)
 
     def __call__(self, location: Location, system_context: SystemContext,
-                 *args: typing.Any, **kwargs: typing.Any) -> bool:
+                 *args: typing.Any, **kwargs: typing.Any) -> None:
         """Execute command."""
         assert False
-        return True
 
     def config_directory(self, system_context: SystemContext) -> str:
-        return os.path.join(system_context.ctx.systems_directory(), 'config',
+        assert system_context.ctx
+        return os.path.join(system_context.ctx.systems_directory() or '', 'config',
                             self.name())
 
     def syntax(self) -> str:

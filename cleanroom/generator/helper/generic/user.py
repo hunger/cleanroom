@@ -4,19 +4,23 @@
 @author: Tobias Hunger <tobias.hunger@gmail.com>
 """
 
+
 from cleanroom.generator.context import Binaries
+from cleanroom.generator.systemcontext import SystemContext
 
 import collections
 import os.path
+import typing
 
 
 User = collections.namedtuple('User', ['name', 'password', 'uid', 'gid',
                                        'comment', 'home', 'shell'])
 
 
-def useradd(system_context, user_name, *,
-            comment='', home='', gid=-1, uid=-1, shell='',
-            groups='', password='', expire=None):
+def useradd(system_context: SystemContext, user_name: str, *,
+            comment: str = '', home: str = '', gid: int = -1, uid: int = -1,
+            shell: str = '', groups: str = '', password: str = '',
+            expire: typing.Optional[str] = None):
     """Add a new user to the system."""
     command = [system_context.binary(Binaries.USERADD),
                '--root', system_context.fs_directory(), user_name]
@@ -53,7 +57,7 @@ def useradd(system_context, user_name, *,
 
 def usermod(system_context, user_name, *, comment='', home='', gid=-1, uid=-1,
             lock=None, rename='', shell='', append=False, groups='',
-            password='', expire=None):
+            password='', expire=None) -> None:
     """Modify an existing user."""
     command = [system_context.binary(Binaries.USERMOD),
                '--root', system_context.fs_directory(), user_name]
@@ -103,7 +107,7 @@ def usermod(system_context, user_name, *, comment='', home='', gid=-1, uid=-1,
     system_context.run(*command, outside=True)
 
 
-def _user_data(passwd_file, name):
+def _user_data(passwd_file: str, name: str) -> typing.Optional[User]:
     assert isinstance(name, str)
     if not os.path.isfile(passwd_file):
         return None
@@ -114,7 +118,7 @@ def _user_data(passwd_file, name):
         for line in passwd:
             if line.endswith('\n'):
                 line = line[:-1]
-            current_user = line.split(':')
+            current_user: typing.List[typing.Any] = line.split(':')
             if current_user[0] == name:
                 current_user[2] = int(current_user[2])
                 current_user[3] = int(current_user[3])
@@ -122,6 +126,6 @@ def _user_data(passwd_file, name):
     return User('nobody', 'x', 65534, 65534, 'Nobody', '/', '/sbin/nologin')
 
 
-def user_data(system_context, name):
+def user_data(system_context: SystemContext, name: str) -> typing.Optional[User]:
     """Get user data from passwd file."""
     return _user_data(system_context.file_name('/etc/passwd'), name)

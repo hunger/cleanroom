@@ -4,35 +4,43 @@
 @author: Tobias Hunger <tobias.hunger@gmail.com>
 """
 
-from cleanroom.generator.exportcommand import ExportCommand
-
+from cleanroom.exceptions import ParseError
+from cleanroom.location import Location
 from cleanroom.generator.context import Binaries
+from cleanroom.generator.exportcommand import ExportCommand
+from cleanroom.generator.systemcontext import SystemContext
 from cleanroom.helper.btrfs import create_snapshot, create_subvolume, \
     delete_subvolume, delete_subvolume_recursive
 
 import os.path
+import typing
+
 
 class ExportRootFsCommand(ExportCommand):
     """The export_rootfs Command."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
         super().__init__('export_rootfs',
                          syntax='[tarballs={dir: name, dir2: name2}]',
                          help='Export the root filesystem.',
                          file=__file__)
-        self._tarballs=''
+        self._tarballs = ''
         self._export_volume = ''
 
-    def validate_arguments(self, location, *args, **kwargs):
+    def validate_arguments(self, location: Location, *args: typing.Any, **kwargs: typing.Any) \
+            -> typing.Optional[str]:
         """Validate arguments."""
         self._validate_no_args(location, *args)
-        self._validate_kwargs(location, ('tarballs'), **kwargs)
+        self._validate_kwargs(location, ('tarballs',), **kwargs)
 
-    def set_arguments_and_kwargs(self, *args, **kwargs):
+        return None
+
+    def set_arguments_and_kwargs(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         self._tarballs = kwargs.get('tarballs', '')
 
-    def _create_tarballs(self, location, system_context, directory, tarball):
+    def _create_tarballs(self, location: Location, system_context: SystemContext,
+                         directory: str, tarball: str) -> None:
         system_context.run('tar', '-cf',
                            os.path.join(self._export_volume, tarball) + '.tar', '.',
                            outside=True)
@@ -42,9 +50,13 @@ class ExportRootFsCommand(ExportCommand):
         system_context.execute(location, 'remove', to_remove,
                                recursive=True, force=True)
 
-    def create_export_directory(self, location, system_context):
+    def create_export_directory(self, location: Location, system_context: SystemContext) \
+            -> str:
         """Return the root directory."""
-        self._export_volume = os.path.join(system_context.ctx.work_directory(), 'export')
+        assert system_context.ctx
+        work_directory = system_context.ctx.work_directory()
+        assert work_directory
+        self._export_volume = os.path.join(work_directory, 'export')
         if os.path.isdir(self._export_volume):
             delete_subvolume_recursive(self._export_volume, 
                                        command=system_context.binary(Binaries.BTRFS))
@@ -68,7 +80,7 @@ class ExportRootFsCommand(ExportCommand):
 
         return self._export_volume
 
-    def delete_export_directory(self, system_context, export_directory):
+    def delete_export_directory(self, system_context: SystemContext, export_directory: str) -> None:
         """Nothing to see, move on."""
         delete_subvolume(os.path.join(export_directory, 'fs'),
                          command=system_context.binary(Binaries.BTRFS))

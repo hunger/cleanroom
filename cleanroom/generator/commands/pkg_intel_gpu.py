@@ -4,26 +4,31 @@
 """
 
 
+from cleanroom.location import Location
 from cleanroom.generator.command import Command
-from cleanroom.generator.helper.generic.file import exists
+from cleanroom.generator.systemcontext import SystemContext
 
-import os.path
+import typing
 
 
 class PkgIntelGpuCommand(Command):
     """The pkg_intel_gpu command."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
         super().__init__('pkg_intel_gpu',
-                         help='Set up Intel GPU.',
+                         help_string='Set up Intel GPU.',
                          file=__file__)
 
-    def validate_arguments(self, location, *args, **kwargs):
+    def validate_arguments(self, location: Location, *args: typing.Any, **kwargs: typing.Any) \
+            -> typing.Optional[str]:
         """Validate the arguments."""
         self._validate_no_arguments(location, *args, **kwargs)
 
-    def __call__(self, location, system_context, *args, **kwargs):
+        return None
+
+    def __call__(self, location: Location, system_context: SystemContext,
+                 *args: typing.Any, **kwargs: typing.Any) -> None:
         """Execute command."""
 
         # Enable KMS:
