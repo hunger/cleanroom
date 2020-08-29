@@ -10,7 +10,7 @@ based_on scratch
 ###  # ROOT:        path to the systems filesystem root
 
 # Set up some more substitutions:
-set KERNEL_CMDLINE 'quiet'
+set KERNEL_CMDLINE 'debug'
 
 # sed and gzip are needed for locale-gen
 # which is needed by some of the pacman hooks

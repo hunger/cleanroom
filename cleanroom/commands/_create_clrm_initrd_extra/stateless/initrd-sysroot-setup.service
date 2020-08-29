@@ -1,0 +1,15 @@
+[Unit]
+Description=Set up root fs in /sysroot
+DefaultDependencies=no
+ConditionPathExists=/sysroot/usr/lib/boot/root-fs.tar
+Requires=sysroot.mount
+After=sysroot.mount systemd-volatile-root.service
+Before=initrd-root-fs.target shutdown.target
+Conflicts=shutdown.target
+AssertPathExists=/etc/initrd-release
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/tar -C /sysroot -xf /sysroot/usr/lib/boot/root-fs.tar
+

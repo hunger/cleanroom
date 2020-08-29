@@ -21,6 +21,7 @@ class Binaries(Enum):
     BORG = auto()
     BTRFS = auto()
     CHROOT_HELPER = auto()
+    CPIO = auto()
     DEBOOTSTRAP = auto()
     DEPMOD = auto()
     DPKG = auto()
@@ -70,6 +71,7 @@ def _find_binaries() -> typing.Dict[Binaries, str]:
         Binaries.BORG: _check_for_binary("/usr/bin/borg"),
         Binaries.BTRFS: _check_for_binary("/usr/bin/btrfs"),
         Binaries.CHROOT_HELPER: _check_for_binary("/usr/bin/arch-chroot"),
+        Binaries.CPIO: _check_for_binary("/usr/bin/cpio"),
         Binaries.DEPMOD: _check_for_binary("/usr/bin/depmod"),
         Binaries.FIND: _check_for_binary("/usr/bin/find"),
         Binaries.FLOCK: _check_for_binary("/usr/bin/flock"),
@@ -120,6 +122,7 @@ class BinaryManager:
     def __init__(self) -> None:
         """Constructor."""
         self._binaries = _find_binaries()
+        self._optionals: typing.List[Binaries] = []
 
     def preflight_check(self) -> None:
         passed = True
@@ -127,8 +130,11 @@ class BinaryManager:
             if b[1]:
                 debug("{} found: {}...".format(b[0], b[1]))
             else:
-                warn("{} not found.".format(b[0]))
-                passed = False
+                if b in self._optionals:
+                    debug("[OPTIONAL] {} not found, ignoring.")
+                else:
+                    warn("{} not found.".format(b[0]))
+                    passed = False
         if not passed:
             raise PreflightError("Required binaries are not available.")
 

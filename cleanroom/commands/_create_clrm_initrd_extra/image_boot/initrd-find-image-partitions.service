@@ -1,0 +1,17 @@
+[Unit]
+Description=Find partitions in image files
+DefaultDependencies=no
+ConditionFileNotEmpty=/images/{image_full_name}
+After=images.mount
+BindsTo=images.mount
+Requisite=images.mount
+
+[Service]
+WorkingDirectory=/
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/losetup -rP /dev/loop7 /images/{image_full_name}
+ExecStop=/usr/bin/losetup -d /dev/loop7
+
+[Install]
+WantedBy=images.mount

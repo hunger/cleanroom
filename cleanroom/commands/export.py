@@ -48,7 +48,7 @@ def _create_dmverity(
     squashfs_file: str,
     *,
     vrty_label: str,
-    veritysetup_command: str
+    veritysetup_command: str,
 ) -> typing.Tuple[str, str, str]:
     verity_file = os.path.join(target_directory, vrty_label)
     result = run(veritysetup_command, "format", squashfs_file, verity_file)
@@ -130,7 +130,7 @@ class ExportCommand(Command):
             "[usr_only=True]",
             help_string="Export a filesystem image.",
             file=__file__,
-            **services
+            **services,
         )
 
     def validate(
@@ -152,7 +152,7 @@ class ExportCommand(Command):
                 "skip_validation",
                 "usr_only",
             ),
-            **kwargs
+            **kwargs,
         )
 
         if "key" in kwargs:
@@ -253,7 +253,7 @@ class ExportCommand(Command):
         location: Location,
         system_context: SystemContext,
         *args: typing.Any,
-        **kwargs: typing.Any
+        **kwargs: typing.Any,
     ) -> None:
         """Execute command."""
         self._setup(*args, **kwargs)
@@ -467,9 +467,17 @@ class ExportCommand(Command):
     def _create_initramfs(
         self, location: Location, system_context: SystemContext
     ) -> bool:
-        location.set_description("Create initrd")
         initrd_parts = os.path.join(system_context.boot_directory, "initrd-parts")
+        location.set_description("Create EXTRA initrd part")
         os.makedirs(initrd_parts, exist_ok=True)
+        self._execute(
+            location.next_line(),
+            system_context,
+            "_create_clrm_initrd_extra",
+            os.path.join(initrd_parts, "99-clrm-extra"),
+        )
+
+        location.set_description("Create initrd")
         self._execute(
             location.next_line(),
             system_context,
@@ -505,7 +513,7 @@ class ExportCommand(Command):
             "-noX",
             "-processors",
             "1",
-            work_directory=system_context.fs_directory
+            work_directory=system_context.fs_directory,
         )
         _size_extend(squash_file)
         return squash_file

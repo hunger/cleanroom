@@ -1,0 +1,5 @@
+BINARY /usr/lib/systemd/systemd-volatile-root
+
+FILE /usr/lib/systemd/system/systemd-volatile-root.service
+
+LINK /usr/lib/systemd/system/initrd.target.wants/systemd-volatile-root.service ../systemd-volatile-root.service

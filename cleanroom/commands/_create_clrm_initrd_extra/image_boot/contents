@@ -1,0 +1,9 @@
+OPTIONAL FILE ./images.mount /usr/lib/systemd/system/images.mount
+FILE ./initrd-find-image-partitions.service /usr/lib/systemd/system/initrd-find-image-partitions.service
+OPTIONAL FILE ./initrd-find-root-lv-partitions.service /usr/lib/systemd/system/initrd-find-root-lv-partitions.service
+
+MODULE loop
+
+OPTIONAL LINK /usr/lib/systemd/system/dev-{volume_group}-{image_full_name}.device.wants/initrd-find-root-lv-partitions.service ../initrd-find-root-lv-partitions.service
+OPTIONAL LINK /usr/lib/systemd/system/{escaped_image_device}.device.wants/images.mount ../images.mount
+LINK /usr/lib/systemd/system/images.mount.wants/initrd-find-image-partitions.service ../initrd-find-image-partitions.service
