@@ -467,9 +467,17 @@ class ExportCommand(Command):
     def _create_initramfs(
         self, location: Location, system_context: SystemContext
     ) -> bool:
-        location.set_description("Create initrd")
         initrd_parts = os.path.join(system_context.boot_directory, "initrd-parts")
+        location.set_description("Create EXTRA initrd part")
         os.makedirs(initrd_parts, exist_ok=True)
+        self._execute(
+            location.next_line(),
+            system_context,
+            "_create_clrm_initrd_extra",
+            os.path.join(initrd_parts, "99-clrm-extra"),
+        )
+
+        location.set_description("Create initrd")
         self._execute(
             location.next_line(),
             system_context,

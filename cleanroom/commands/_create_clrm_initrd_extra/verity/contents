@@ -1,0 +1,5 @@
+BINARY /usr/lib/systemd/systemd-veritysetup
+BINARY /usr/lib/systemd/system-generators/systemd-veritysetup-generator
+
+MODULE dm-verity
+

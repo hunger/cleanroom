@@ -1,0 +1,8 @@
+OPTIONAL FILE /usr/lib/systemd/system/sysroot-var.mount
+FILE ./initrd-sysroot-setup.service /usr/lib/systemd/system/initrd-sysroot-setup.service
+
+OPTIONAL LINK /usr/lib/systemd/system/initrd.target.wants ../sysroot-var.mount
+LINK /usr/lib/systemd/system/initrd.target.wants/initrd-sysroot-setup.service ../initrd-sysroot-setup.service
+OPTIONAL LINK /usr/lib/systemd/system/initrd-fs.target.wants/sysroot-var.mount ../sysroot-var.mount
+
+MODULE squashfs
