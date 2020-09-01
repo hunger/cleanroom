@@ -11,7 +11,14 @@ from shutil import copyfile
 import typing
 
 
-def _append_network(hostname, *, hostfwd=[], mac="", net="", host=""):
+def _append_network(
+    hostname: str,
+    *,
+    hostfwd: typing.List[str] = [],
+    mac: str = "",
+    net: str = "",
+    host: str = ""
+):
     hostfwd_args = ["hostfwd={}".format(p) for p in hostfwd]
 
     hostfwd_str = "," + ",".join(hostfwd_args) if hostfwd_args else ""
@@ -32,11 +39,14 @@ def _append_network(hostname, *, hostfwd=[], mac="", net="", host=""):
     ]
 
 
-def _append_hdd(bootindex, counter, disk):
+def _append_hdd(bootindex: int, counter: int, disk: str):
     disk_parts = disk.split(":")
     usb_disk = "usb" in disk_parts
+    read_only = "read-only" in disk_parts
     if usb_disk:
         disk_parts.remove("usb")
+    if read_only:
+        disk_parts.remove("read-only")
 
     if len(disk_parts) < 2:
         disk_parts.append("qcow2")
@@ -48,15 +58,21 @@ def _append_hdd(bootindex, counter, disk):
     if usb_disk:
         driver = "usb-storage"
 
+    drive_extra = ""
+    if read_only:
+        drive_extra += ",read-only"
+
     return [
         "-drive",
-        "file={},format={},if=none,id=disk{}".format(disk_parts[0], disk_parts[1], c),
+        "file={},format={},if=none,id=disk{}{}".format(
+            disk_parts[0], disk_parts[1], c, drive_extra
+        ),
         "-device",
         "{},drive=disk{},bootindex={}".format(driver, c, bootindex),
     ]
 
 
-def _append_fs(fs, *, read_only=False):
+def _append_fs(fs: str, *, read_only: bool = False):
     fs_parts = fs.split(":")
     assert len(fs_parts) == 2
 
@@ -70,7 +86,7 @@ def _append_fs(fs, *, read_only=False):
     ]
 
 
-def _append_efi(efi_vars):
+def _append_efi(efi_vars: str):
     if not os.path.exists(efi_vars):
         copyfile("/usr/share/ovmf/x64/OVMF_VARS.fd", efi_vars)
     return [
@@ -173,7 +189,7 @@ def setup_parser_for_qemu(parser: typing.Any) -> None:
 
 def run_qemu(
     parse_result: typing.Any, *, drives: typing.List[str] = [], work_directory: str
-):
+) -> int:
     qemu_args = [
         "/usr/bin/qemu-system-x86_64",
         "--enable-kvm",
@@ -233,3 +249,5 @@ def run_qemu(
         print("Qemu run Failed with return code {}.".format(result.returncode))
         print("Qemu stdout: {}".format(result.stdout))
         print("Qemu stderr: {}".format(result.stderr))
+
+    return result.returncode

@@ -9,7 +9,7 @@ from cleanroom.command import Command
 from cleanroom.exceptions import ParseError
 from cleanroom.location import Location
 from cleanroom.systemcontext import SystemContext
-from cleanroom.printer import trace, verbose
+from cleanroom.printer import verbose
 
 import re
 import typing
@@ -68,7 +68,10 @@ class BasedOnCommand(Command):
             self._add_hook(location, system_context, "testing", "_test")
             self._execute(location, system_context, "_setup")
         else:
-            assert system_context.base_context.system_name == base_system
+            assert (
+                system_context.base_context
+                and system_context.base_context.system_name == base_system
+            )
             verbose("Building on top of {}.".format(base_system))
             self._execute(location, system_context, "_restore", base_system)
 

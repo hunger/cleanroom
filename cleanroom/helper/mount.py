@@ -9,7 +9,7 @@ from ..printer import trace, none
 from .run import run
 
 import re
-import os.path
+import os
 import stat
 import typing
 
@@ -54,7 +54,7 @@ def mount_points(
 
 
 def umount(directory: str, chroot: typing.Optional[str] = None) -> None:
-    """Unmount a directory."""
+    """Umount a directory."""
     assert len(mount_points(directory)) == 1
 
     run("/usr/bin/umount", _map_into_chroot(directory, chroot))
@@ -63,7 +63,7 @@ def umount(directory: str, chroot: typing.Optional[str] = None) -> None:
 
 
 def umount_all(directory: str, chroot: typing.Optional[str] = None) -> bool:
-    """Unmount all mount points below a directory."""
+    """Umount all mount points below a directory."""
     sub_mounts = mount_points(directory, chroot=chroot)
 
     if sub_mounts:
@@ -168,7 +168,9 @@ class Mount:
         )
         return self._directory
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self, exc_type: typing.Any, exc_val: typing.Any, exc_tb: typing.Any
+    ) -> None:
         if self._fallback_cwd:
             os.chdir(self._fallback_cwd)
         umount(self._directory)

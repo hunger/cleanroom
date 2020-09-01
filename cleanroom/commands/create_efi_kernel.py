@@ -11,10 +11,10 @@ from cleanroom.exceptions import GenerateError
 from cleanroom.helper.run import run
 from cleanroom.location import Location
 from cleanroom.systemcontext import SystemContext
-from cleanroom.printer import debug
+from cleanroom.printer import debug, trace
 
 from glob import glob
-import os.path
+import os
 import tempfile
 import typing
 
@@ -40,7 +40,7 @@ def _get_initrd_parts(location: Location, path: str) -> typing.List[str]:
     if not path:
         raise GenerateError("No initrd-parts directory.", location=location)
 
-    initrd_parts = []  # type: typing.List[str]
+    initrd_parts: typing.List[str] = []
     for f in glob(os.path.join(path, "*")):
         if os.path.isfile(f):
             initrd_parts.append(f)
@@ -49,6 +49,8 @@ def _get_initrd_parts(location: Location, path: str) -> typing.List[str]:
             'No initrd-parts found in directory "{}".'.format(path), location=location
         )
     initrd_parts.sort()
+    for ip in initrd_parts:
+        trace(f"    Adding into initrd: {ip} ...")
     return initrd_parts
 
 
@@ -64,7 +66,7 @@ class CreateEfiKernelCommand(Command):
             "commandline=<KERNEL_COMMANDLINE>",
             help_string="Create a efi kernel with built-in initrd.",
             file=__file__,
-            **services
+            **services,
         )
 
     def validate(
@@ -94,7 +96,7 @@ class CreateEfiKernelCommand(Command):
         location: Location,
         system_context: SystemContext,
         *args: typing.Any,
-        **kwargs: typing.Any
+        **kwargs: typing.Any,
     ) -> None:
         """Execute command."""
         output = args[0]
@@ -115,7 +117,7 @@ class CreateEfiKernelCommand(Command):
         debug("{}: osrelease: {}.".format(self.name, osrelease_file))
         debug("{}: efistub  : {}.".format(self.name, efistub))
 
-        self._validate_files(kernel, *initrd_files, osrelease_file, efistub)
+        self._validate_files(location, kernel, *initrd_files, osrelease_file, efistub)
         with tempfile.TemporaryDirectory() as tmp:
             initrd = _create_initrd(tmp, *initrd_files)
             cmdline = _create_cmdline_file(tmp, cmdline_input)

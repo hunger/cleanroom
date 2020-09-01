@@ -11,11 +11,9 @@ from ..exceptions import GenerateError
 from ..printer import debug, trace, warn
 from .run import run
 
-import collections
 import json
 import math
 import os
-import os.path
 import subprocess
 from re import findall
 import stat
@@ -23,23 +21,25 @@ import typing
 from time import sleep
 
 
-Disk = collections.namedtuple(
-    "Disk",
-    [
-        "label",
-        "id",
-        "device",
-        "unit",
-        "firstlba",
-        "lastlba",
-        "partitions",
-        "sectorsize",
-    ],
-)
-Partition = collections.namedtuple(
-    "Partition",
-    ["node", "start", "size", "partition_type", "uuid", "name", "sectorsize"],
-)
+class Disk(typing.NamedTuple):
+    label: str
+    id: str
+    device: str
+    unit: str
+    firstlba: typing.Optional[int]
+    lastlba: typing.Optional[int]
+    partitions: typing.List[Partition]
+    sectorsize: int
+
+
+class Partition(typing.NamedTuple):
+    node: typing.Optional[str]
+    start: typing.Optional[int]
+    size: typing.Optional[int]
+    partition_type: str
+    uuid: str
+    name: str
+    sectorsize: int
 
 
 def _is_root() -> bool:
@@ -61,10 +61,14 @@ def is_nbd_device_in_use(device: str, *, nbd_client_command: str = ""):
         # Not connected according to nbd-client, now try to open:
         # https://unix.stackexchange.com/questions/33508/check-which-network-block-devices-are-in-use
         # says this extra step is necessary.
+        trace("Running extra open check...")
         fd = os.open(device, os.O_EXCL)
         ret_val = fd == -1
         if fd != -1:
             os.close(fd)
+
+        trace("    Extra check result: {}.".format(ret_val))
+
     return ret_val
 
 
@@ -137,10 +141,10 @@ def create_image_file(
 
     if not os.path.exists(file_name):
         trace("New image file")
-        with open(file_name, "a") as f:
+        with open(file_name, "a") as _:
             pass
         trace(".... image file created.")
-        run("/usr/bin/attr", "+C", file_name, returncode=None)
+        run("/usr/bin/chattr", "+C", file_name, returncode=None)
         trace(".... nocow attribtue set on file (if supported).")
 
     run(
@@ -164,7 +168,9 @@ class Device:
     def __enter__(self) -> typing.Any:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self, exc_type: typing.Any, exc_val: typing.Any, exc_tb: typing.Any
+    ) -> None:
         pass
 
     def device(self, partition: typing.Optional[int] = None) -> str:
@@ -173,12 +179,12 @@ class Device:
         return "{}{}".format(self._device, partition)
 
     def close(self):
-        pass
+        self._device = ""
 
     def wait_for_device_node(self, partition: typing.Optional[int] = None) -> bool:
         dev = self.device(partition)
         trace('Waiting for "{}".'.format(dev))
-        for i in range(20):
+        for _ in range(20):
             if is_block_device(dev):
                 return True
             elif os.path.exists(dev):
@@ -227,6 +233,7 @@ class NbdDevice(Device):
         nbd_client_command: str = "",
         sync_command: str = "",
         modprobe_command: str = "",
+        read_only: bool = False,
     ) -> None:
         assert os.path.isfile(file_name)
 
@@ -241,6 +248,7 @@ class NbdDevice(Device):
             disk_format=disk_format,
             qemu_nbd_command=qemu_nbd_command,
             modprobe_command=modprobe_command,
+            read_only=read_only,
         )
         assert device
 
@@ -255,16 +263,18 @@ class NbdDevice(Device):
     def __enter__(self) -> typing.Any:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self, exc_type: typing.Any, exc_val: typing.Any, exc_tb: typing.Any
+    ) -> None:
         self.close()
 
     def close(self) -> None:
-        if self._device:
+        if self.device():
             run(
                 self._sync_command or "/usr/bin/sync"
             )  # make sure changes are synced to disk!
             self._delete_nbd_block_device(self._device, self._qemu_nbd_command)
-            self._device = ""
+            super().close()
 
     def device(self, partition: typing.Optional[int] = None) -> str:
         if partition is None:
@@ -287,6 +297,7 @@ class NbdDevice(Device):
         qemu_nbd_command: str = "",
         nbd_client_command: str = "",
         modprobe_command: str = "",
+        read_only: bool = False,
     ) -> typing.Optional[str]:
         assert _is_root()
         assert os.path.isfile(file_name)
@@ -294,6 +305,9 @@ class NbdDevice(Device):
         if not is_block_device(_nbd_device(0)):
             trace("Loading nbd kernel module...")
             run(modprobe_command or "/usr/bin/modprobe", "nbd")
+
+        assert is_block_device(_nbd_device(0))
+        debug("nbd kernel module is installed and ready.")
 
         nbd_count = _get_max_nbd_count()
 
@@ -308,12 +322,18 @@ class NbdDevice(Device):
                 trace("{} is in use, skipping".format(device))
                 continue
 
+            args = [
+                "--connect={}".format(device),
+                "--format={}".format(disk_format),
+                file_name,
+            ]
+            if read_only:
+                args.append("-r")
+
             try:
                 result = run(
                     qemu_nbd_command or "/usr/bin/qemu-nbd",
-                    "--connect={}".format(device),
-                    "--format={}".format(disk_format),
-                    file_name,
+                    *args,
                     returncode=None,
                     timeout=5,
                     stdout="/dev/null",
@@ -366,15 +386,15 @@ class Partitioner:
         self._flock_command = flock_command or "/usr/bin/flock"
         self._sfdisk_command = sfdisk_command or "/usr/bin/sfdisk"
         self._device = device
-        self._data = None  # type: typing.Optional[Disk]
+        self._data: typing.Optional[Disk] = None
 
         self._get_partition_data()
 
     @staticmethod
     def swap_partition(
         *,
-        start: typing.Optional[str] = None,
-        size: typing.Any = "4G",
+        start: typing.Optional[int] = None,
+        size: int = byte_size("4G"),
         name: str = "swap partition",
     ) -> Partition:
         return Partition(
@@ -389,7 +409,7 @@ class Partitioner:
 
     @staticmethod
     def efi_partition(
-        *, start: typing.Optional[str] = None, size: typing.Any = "512M"
+        *, start: typing.Optional[int] = None, size: int = byte_size("512M")
     ) -> Partition:
         return Partition(
             node=None,
@@ -404,8 +424,8 @@ class Partitioner:
     @staticmethod
     def data_partition(
         *,
-        start: typing.Optional[str] = None,
-        size: typing.Any = None,
+        start: typing.Optional[int] = None,
+        size: typing.Optional[int] = None,
         partition_type: str = "2d212206-b0ee-482e-9fec-e7c208bef27a",
         partition_uuid: str = "",
         name: str,

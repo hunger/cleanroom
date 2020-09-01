@@ -10,7 +10,7 @@ based_on scratch
 ###  # ROOT:        path to the systems filesystem root
 
 # Set up some more substitutions:
-set KERNEL_CMDLINE 'quiet'
+set KERNEL_CMDLINE 'debug'
 
 # sed and gzip are needed for locale-gen
 # which is needed by some of the pacman hooks
@@ -54,6 +54,7 @@ remove /usr/lib/systemd/system/timers.target.wants/shadow.timer
 ensure_no_unused_shell_files
 ensure_hwdb
 ensure_ldconfig
+ensure_depmod
 ensure_no_kernel_install
 ensure_no_update_service
 ensure_no_sysusers

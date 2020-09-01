@@ -5,10 +5,8 @@
 """
 
 
-from ...binarymanager import Binaries
 from ...printer import debug, info
 from ...systemcontext import SystemContext
-from ..btrfs import BtrfsHelper
 from ..run import run
 from ..mount import umount_all, mount
 
@@ -137,7 +135,7 @@ def _pacman_keyinit(system_context: SystemContext, pacman_key_command: str) -> N
     )
 
 
-def _mountpoint(root_dir, folder, dev, **kwargs):
+def _mountpoint(root_dir: str, folder: str, dev: str, **kwargs: typing.Any):
     debug("Mounting {} in chroot.".format(folder))
     path = os.path.join(root_dir, folder)
     if not os.path.isdir(path):
@@ -145,7 +143,7 @@ def _mountpoint(root_dir, folder, dev, **kwargs):
     mount(dev, path, **kwargs)
 
 
-def _mount_directories_if_needed(root_dir, *, pacman_in_filesystem=False):
+def _mount_directories_if_needed(root_dir: str, *, pacman_in_filesystem: bool = False):
     debug("Preparing pacman chroot for external pacman run.")
     _mountpoint(root_dir, "proc", "proc", options="nosuid,noexec,nodev", fs_type="proc")
     _mountpoint(
@@ -172,7 +170,7 @@ def _mount_directories_if_needed(root_dir, *, pacman_in_filesystem=False):
     )
 
 
-def _unmount_directories_if_needed(root_dir, *, pacman_in_filesystem=False):
+def _umount_directories_if_needed(root_dir: str, *, pacman_in_filesystem: bool = False):
     debug("Cleaning up pacman chroot.")
     umount_all(root_dir)
 
@@ -182,7 +180,7 @@ def _run_pacman(
     *args: str,
     pacman_command: str,
     pacman_in_filesystem: bool,
-    **kwargs
+    **kwargs: typing.Any
 ) -> None:
     _sanity_check(system_context)
 
@@ -310,7 +308,7 @@ def pacman(
         pacman_command=pacman_command,
         pacman_in_filesystem=previous_pacstate
     )
-    _unmount_directories_if_needed(
+    _umount_directories_if_needed(
         system_context.fs_directory, pacman_in_filesystem=previous_pacstate
     )
 
@@ -367,21 +365,21 @@ def pacman_report(
     )
 
     # Generate file list:
-    qlin = os.path.join(directory, "pacman-Ql.txt.in")
+    ql_in = os.path.join(directory, "pacman-Ql.txt.in")
     action = ["-Ql"]
     _run_pacman(
         system_context,
         *action,
-        stdout=qlin,
+        stdout=ql_in,
         pacman_command=pacman_command,
         pacman_in_filesystem=False
     )
 
     # Filter prefix from file list:
-    with open(qlin, "r") as input_fd:
+    with open(ql_in, "r") as input_fd:
         with open(os.path.join(directory, "pacman-Ql.txt"), "w") as output_fd:
             for line in input_fd:
                 output_fd.write(line.replace(system_context.fs_directory, ""))
 
     # Remove prefix-ed version:
-    os.remove(qlin)
+    os.remove(ql_in)

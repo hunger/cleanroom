@@ -36,7 +36,9 @@ class PacstrapCommand(Command):
             **services
         )
 
-    def validate(self, location: Location, *args: str, **kwargs: typing.Any) -> None:
+    def validate(
+        self, location: Location, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         """Validate the arguments."""
         self._validate_args_at_least(
             location,
@@ -51,11 +53,11 @@ class PacstrapCommand(Command):
         self,
         location: Location,
         system_context: SystemContext,
-        *args: str,
+        *args: typing.Any,
         **kwargs: typing.Any
     ) -> None:
         """Execute command."""
-        pacman_setup(system_context, kwargs.get("config"))
+        pacman_setup(system_context, kwargs.get("config", ""))
 
         pacman_key_command = self._binary(Binaries.PACMAN_KEY)
         pacman_keyinit(system_context, pacman_key_command=pacman_key_command)

@@ -1,0 +1,16 @@
+[Unit]
+Description=Find partitions in root LV
+DefaultDependencies=no
+ConditionPathExists=/dev/{volume_group}/{image_base_name}
+After=dev-{volume_group}-{image_base_name}.device
+BindsTo=dev-{volume_group}-{image_base_name}.device
+Requisite=dev-{volume_group}-{image_base_name}.device
+
+[Service]
+WorkingDirectory=/
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/partprobe /dev/{volume_group}/{image_base_name}
+
+[Install]
+WantedBy=dev-{volume_group}-{image_base_name}.device
