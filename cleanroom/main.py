@@ -18,6 +18,7 @@ from .systemsmanager import SystemsManager
 
 from argparse import ArgumentParser
 import os
+import subprocess
 import sys
 import typing
 
@@ -86,6 +87,12 @@ def _parse_commandline(*arguments: str) -> typing.Any:
         action="store_true",
         help="Keep temporary data in work directory.",
     )
+    parser.add_argument(
+        "--with-post-shell",
+        dest="with_post_shell",
+        action="store_true",
+        help="Start a shell after the build is done.",
+    )
 
     parser.add_argument(
         dest="systems", nargs="*", metavar="<system>", help="systems to create"
@@ -108,81 +115,92 @@ def run() -> None:
 
 def main(*command_arguments: str) -> None:
     """Run cleanroom with arguments."""
-    args = _parse_commandline(*command_arguments)
+    try:
+        args = _parse_commandline(*command_arguments)
 
-    if not args.list_commands and not args.list_substitutions and not args.systems:
-        print("No systems to process.")
-        sys.exit(1)
+        if not args.list_commands and not args.list_substitutions and not args.systems:
+            print("No systems to process.")
+            post_shell()
+            sys.exit(1)
 
-    h2("Setup phase")
+        h2("Setup phase")
 
-    # Set up printing:
-    pr = Printer.instance()
-    pr.set_verbosity(args.verbose)
-    pr.show_verbosity_level()
+        # Set up printing:
+        pr = Printer.instance()
+        pr.set_verbosity(args.verbose)
+        pr.show_verbosity_level()
 
-    # Find binaries:
-    binary_manager = BinaryManager()
+        # Find binaries:
+        binary_manager = BinaryManager()
 
-    preflight_check(
-        "binaries", binary_manager.preflight_check, ignore_errors=args.ignore_errors
-    )
-
-    btrfs_helper = BtrfsHelper(binary_manager.binary(Binaries.BTRFS))
-    user_helper = UserHelper(
-        binary_manager.binary(Binaries.USERADD), binary_manager.binary(Binaries.USERMOD)
-    )
-    group_helper = GroupHelper(
-        binary_manager.binary(Binaries.GROUPADD),
-        binary_manager.binary(Binaries.GROUPMOD),
-    )
-
-    preflight_check("users", users_check, ignore_errors=args.ignore_errors)
-
-    systems_directory = (
-        args.systems_directory if args.systems_directory else os.getcwd()
-    )
-
-    command_manager = CommandManager(
-        os.path.join(os.path.dirname(__file__), "commands"),
-        os.path.join(systems_directory, "cleanroom/commands"),
-        binary_manager=binary_manager,
-        btrfs_helper=btrfs_helper,
-        group_helper=group_helper,
-        user_helper=user_helper,
-    )
-
-    if args.list_commands:
-        command_manager.print_commands()
-        exit(0)
-
-    if args.list_substitutions:
-        command_manager.print_substitutions()
-        exit(0)
-
-    preflight_check(
-        "command", command_manager.preflight_check, ignore_errors=args.ignore_errors
-    )
-
-    h2("Starting preparation phase")
-
-    with WorkDir(
-        btrfs_helper,
-        work_directory=args.work_directory,
-        clear_scratch_directory=args.clear_scratch_directory,
-        clear_storage=args.clear_storage,
-    ) as work_directory:
-
-        h2("Starting generation phase")
-
-        systems_manager = SystemsManager(
-            command_manager, systems_directory, *args.systems
+        preflight_check(
+            "binaries", binary_manager.preflight_check, ignore_errors=args.ignore_errors
         )
 
-        generator = Generator(systems_manager)
-        generator.generate_systems(
-            work_directory=work_directory,
-            command_manager=command_manager,
-            ignore_errors=args.ignore_errors,
-            repository_base_directory=args.repository_base_directory,
+        btrfs_helper = BtrfsHelper(binary_manager.binary(Binaries.BTRFS))
+        user_helper = UserHelper(
+            binary_manager.binary(Binaries.USERADD),
+            binary_manager.binary(Binaries.USERMOD),
         )
+        group_helper = GroupHelper(
+            binary_manager.binary(Binaries.GROUPADD),
+            binary_manager.binary(Binaries.GROUPMOD),
+        )
+
+        preflight_check("users", users_check, ignore_errors=args.ignore_errors)
+
+        systems_directory = (
+            args.systems_directory if args.systems_directory else os.getcwd()
+        )
+
+        command_manager = CommandManager(
+            os.path.join(os.path.dirname(__file__), "commands"),
+            os.path.join(systems_directory, "cleanroom/commands"),
+            binary_manager=binary_manager,
+            btrfs_helper=btrfs_helper,
+            group_helper=group_helper,
+            user_helper=user_helper,
+        )
+
+        if args.list_commands:
+            command_manager.print_commands()
+            exit(0)
+
+        if args.list_substitutions:
+            command_manager.print_substitutions()
+            exit(0)
+
+        preflight_check(
+            "command", command_manager.preflight_check, ignore_errors=args.ignore_errors
+        )
+
+        h2("Starting preparation phase")
+
+        with WorkDir(
+            btrfs_helper,
+            work_directory=args.work_directory,
+            clear_scratch_directory=args.clear_scratch_directory,
+            clear_storage=args.clear_storage,
+        ) as work_directory:
+
+            h2("Starting generation phase")
+
+            systems_manager = SystemsManager(
+                command_manager, systems_directory, *args.systems
+            )
+
+            generator = Generator(systems_manager)
+            generator.generate_systems(
+                work_directory=work_directory,
+                command_manager=command_manager,
+                ignore_errors=args.ignore_errors,
+                repository_base_directory=args.repository_base_directory,
+            )
+    finally:
+        if args.with_post_shell:
+            print("Post Shell:")
+            subprocess.run(
+                ["/usr/bin/bash",]
+            )
+            print("Post Shell done...")
+
