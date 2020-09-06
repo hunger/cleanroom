@@ -126,6 +126,16 @@ def main(*command_arguments: str) -> None:
     if not _validate_build_container(build_container):
         sys.exit(1)
 
+    if not os.path.ismount(build_container):
+        result = subprocess.run(
+            ["/usr/bin/mount", "-o", "bind", build_container, build_container]
+        )
+        if result.returncode != 0:
+            print(
+                f"ERROR: Failed to turn {build_container} into a mount point: Bind-mount failed with {result.returncode}."
+            )
+            sys.exit(3)
+
     python = _find_python(build_container)
     if not python:
         sys.exit(2)
